@@ -12,6 +12,7 @@ import Json.Encode as JE
 import Json.Decode as JD exposing ((:=))
 import Debug
 import Dict exposing (Dict)
+import Chat
 
 
 -- Our model will track a list of messages and the text for our new message to
@@ -216,51 +217,16 @@ userPresenceDecoder =
         ("device" := JD.string)
 
 
-viewMessage : ChatMessage -> Html Msg
-viewMessage message =
-    div [ class "message" ]
-        [ span [ class "user" ] [ text (message.user ++ ": ") ]
-        , span [ class "body" ] [ text message.body ]
-        ]
-
-
 lobbyManagementView : Html Msg
 lobbyManagementView =
     button [ onClick JoinChannel ] [ text "Join lobby" ]
-
-
-messageListView : Model -> Html Msg
-messageListView model =
-    div [ class "messages" ]
-        (List.map viewMessage model.messages)
-
-
-messageInputView : Model -> Html Msg
-messageInputView model =
-    form [ onSubmit SendMessage ]
-        [ input [ placeholder "Message...", onInput SetNewMessage, value model.newMessage ] [] ]
-
-
-userListView : Model -> Html Msg
-userListView model =
-    ul [ class "users" ]
-        (List.map userView model.users)
-
-
-userView : User -> Html Msg
-userView user =
-    li []
-        [ text user.name
-        ]
 
 
 chatInterfaceView : Model -> Html Msg
 chatInterfaceView model =
     div []
         [ lobbyManagementView
-        , messageListView model
-        , messageInputView model
-        , userListView model
+        , Chat.view model
         ]
 
 
