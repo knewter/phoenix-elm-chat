@@ -58,9 +58,9 @@ socketServer username =
 
 initPhxSocket : String -> Phoenix.Socket.Socket Msg
 initPhxSocket username =
+    --|> Phoenix.Socket.on "new:msg" "room:lobby" ReceiveChatMessage
     Phoenix.Socket.init (socketServer username)
         |> Phoenix.Socket.withDebug
-        |> Phoenix.Socket.on "new:msg" "room:lobby" ReceiveChatMessage
         |> Phoenix.Socket.on "presence_state" "room:lobby" HandlePresenceState
         |> Phoenix.Socket.on "presence_diff" "room:lobby" HandlePresenceDiff
 
@@ -68,9 +68,6 @@ initPhxSocket username =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        SetNewMessage string ->
-            { model | newMessage = string } ! []
-
         JoinChannel channelName ->
             case model.phxSocket of
                 Nothing ->
@@ -102,38 +99,6 @@ update msg model =
                         , Cmd.map PhoenixMsg phxCmd
                         )
 
-        SendMessage ->
-            case model.phxSocket of
-                Nothing ->
-                    model ! []
-
-                Just modelPhxSocket ->
-                    let
-                        payload =
-                            (JE.object [ ( "body", JE.string model.newMessage ) ])
-
-                        push' =
-                            Phoenix.Push.init "new:msg" "room:lobby"
-                                |> Phoenix.Push.withPayload payload
-
-                        ( phxSocket, phxCmd ) =
-                            Phoenix.Socket.push push' modelPhxSocket
-                    in
-                        ( { model
-                            | newMessage = ""
-                            , phxSocket = Just phxSocket
-                          }
-                        , Cmd.map PhoenixMsg phxCmd
-                        )
-
-        ReceiveChatMessage raw ->
-            case JD.decodeValue chatMessageDecoder raw of
-                Ok chatMessage ->
-                    { model | messages = model.messages ++ [ chatMessage ] } ! []
-
-                Err error ->
-                    model ! []
-
         SetUsername username ->
             { model | username = username } ! []
 
@@ -141,55 +106,10 @@ update msg model =
             { model | phxSocket = Just (initPhxSocket model.username) } ! []
 
         HandlePresenceState raw ->
-            case JD.decodeValue (presenceStateDecoder userPresenceDecoder) raw of
-                Ok presenceState ->
-                    let
-                        newPresenceState =
-                            model.phxPresences |> syncState presenceState
-
-                        users =
-                            Dict.keys presenceState
-                                |> List.map User
-                    in
-                        { model | users = users, phxPresences = newPresenceState } ! []
-
-                Err error ->
-                    let
-                        _ =
-                            Debug.log "Error" error
-                    in
-                        model ! []
+            model ! []
 
         HandlePresenceDiff raw ->
-            case JD.decodeValue (presenceDiffDecoder userPresenceDecoder) raw of
-                Ok presenceDiff ->
-                    let
-                        newPresenceState =
-                            model.phxPresences |> syncDiff presenceDiff
-
-                        users =
-                            Dict.keys newPresenceState
-                                |> List.map User
-                    in
-                        { model | users = users, phxPresences = newPresenceState } ! []
-
-                Err error ->
-                    let
-                        _ =
-                            Debug.log "Error" error
-                    in
-                        model ! []
-
-
-chatMessageDecoder : JD.Decoder ChatMessage
-chatMessageDecoder =
-    JD.object2 ChatMessage
-        (JD.oneOf
-            [ ("user" := JD.string)
-            , JD.succeed "anonymous"
-            ]
-        )
-        ("body" := JD.string)
+            model ! []
 
 
 userPresenceDecoder : JD.Decoder UserPresence
@@ -208,7 +128,7 @@ chatInterfaceView : Model -> Html Msg
 chatInterfaceView model =
     div []
         [ lobbyManagementView
-        , Chat.view model
+        , Chat.view model.chat
         ]
 
 

@@ -1,4 +1,4 @@
-module Chat exposing (view, Model)
+module Chat exposing (view, initialModel, Model)
 
 import Html exposing (..)
 import Html.Attributes exposing (value, placeholder, class)
@@ -37,6 +37,46 @@ initialModel =
     , messages = []
     , users = []
     }
+
+
+update : Msg -> Model -> Model
+update msg model =
+    case msg of
+        SetNewMessage string ->
+            { model | newMessage = string }
+
+        SendMessage ->
+            -- case model.phxSocket of
+            --     Nothing ->
+            --         model ! []
+            --
+            --     Just modelPhxSocket ->
+            --         let
+            --             payload =
+            --                 (JE.object [ ( "body", JE.string model.newMessage ) ])
+            --
+            --             push' =
+            --                 Phoenix.Push.init "new:msg" "room:lobby"
+            --                     |> Phoenix.Push.withPayload payload
+            --
+            --             ( phxSocket, phxCmd ) =
+            --                 Phoenix.Socket.push push' modelPhxSocket
+            --         in
+            --             ( { model
+            --                 | newMessage = ""
+            --                 , phxSocket = Just phxSocket
+            --               }
+            --             , Cmd.map PhoenixMsg phxCmd
+            --             )
+            model
+
+        ReceiveChatMessage raw ->
+            case JD.decodeValue chatMessageDecoder raw of
+                Ok chatMessage ->
+                    { model | messages = model.messages ++ [ chatMessage ] }
+
+                Err error ->
+                    model
 
 
 view model =
@@ -95,3 +135,14 @@ viewMessage message =
         [ span [ class "user" ] [ text (message.user ++ ": ") ]
         , span [ class "body" ] [ text message.body ]
         ]
+
+
+chatMessageDecoder : JD.Decoder ChatMessage
+chatMessageDecoder =
+    JD.object2 ChatMessage
+        (JD.oneOf
+            [ ("user" := JD.string)
+            , JD.succeed "anonymous"
+            ]
+        )
+        ("body" := JD.string)
