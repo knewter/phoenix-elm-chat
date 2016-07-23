@@ -1,4 +1,4 @@
-module Chat exposing (view, initialModel, update, Model, Msg(..))
+module Chat exposing (view, initialModel, update, Model, Msg(..), OutMsg(..))
 
 import Html exposing (..)
 import Html.Attributes exposing (value, placeholder, class)
@@ -13,9 +13,13 @@ type Msg
     | SendMessage
 
 
+type OutMsg
+    = Say String
+
+
 type alias Model =
     { newMessage : String
-    , messages : List ChatMessage
+    , messages : List Message
     , users : List User
     }
 
@@ -25,7 +29,7 @@ type alias User =
     }
 
 
-type alias ChatMessage =
+type alias Message =
     { user : String
     , body : String
     }
@@ -39,46 +43,33 @@ initialModel =
     }
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Maybe OutMsg )
 update msg model =
     case msg of
         SetNewMessage string ->
-            { model | newMessage = string }
+            ( { model | newMessage = string }
+            , Nothing
+            )
 
         SendMessage ->
-            -- case model.phxSocket of
-            --     Nothing ->
-            --         model ! []
-            --
-            --     Just modelPhxSocket ->
-            --         let
-            --             payload =
-            --                 (JE.object [ ( "body", JE.string model.newMessage ) ])
-            --
-            --             push' =
-            --                 Phoenix.Push.init "new:msg" "room:lobby"
-            --                     |> Phoenix.Push.withPayload payload
-            --
-            --             ( phxSocket, phxCmd ) =
-            --                 Phoenix.Socket.push push' modelPhxSocket
-            --         in
-            --             ( { model
-            --                 | newMessage = ""
-            --                 , phxSocket = Just phxSocket
-            --               }
-            --             , Cmd.map PhoenixMsg phxCmd
-            --             )
-            model
+            ( { model | newMessage = "" }
+            , Just <| Say model.newMessage
+            )
 
         ReceiveMessage raw ->
             case JD.decodeValue chatMessageDecoder raw of
                 Ok chatMessage ->
-                    { model | messages = model.messages ++ [ chatMessage ] }
+                    ( { model | messages = model.messages ++ [ chatMessage ] }
+                    , Nothing
+                    )
 
                 Err error ->
-                    model
+                    ( model
+                    , Nothing
+                    )
 
 
+view : Model -> Html Msg
 view model =
     div []
         [ messageListView model
@@ -87,49 +78,32 @@ view model =
         ]
 
 
-
---messageListView : Model -> Html Msg
-
-
+messageListView : Model -> Html Msg
 messageListView model =
     div [ class "messages" ]
         (List.map viewMessage model.messages)
 
 
-
---messageInputView : Model -> Html Msg
-
-
+messageInputView : Model -> Html Msg
 messageInputView model =
-    --form [ onSubmit SendMessage ]
-    form []
-        --[ input [ placeholder "Message...", onInput SetNewMessage, value model.newMessage ] [] ]
-        [ input [ placeholder "Message...", value model.newMessage ] [] ]
+    form [ onSubmit SendMessage ]
+        [ input [ placeholder "Message...", onInput SetNewMessage, value model.newMessage ] [] ]
 
 
-
---userListView : Model -> Html Msg
-
-
+userListView : Model -> Html Msg
 userListView model =
     ul [ class "users" ]
         (List.map userView model.users)
 
 
-
---userView : User -> Html Msg
-
-
+userView : User -> Html Msg
 userView user =
     li []
         [ text user.name
         ]
 
 
-
---viewMessage : ChatMessage -> Html Msg
-
-
+viewMessage : Message -> Html Msg
 viewMessage message =
     div [ class "message" ]
         [ span [ class "user" ] [ text (message.user ++ ": ") ]
@@ -137,9 +111,9 @@ viewMessage message =
         ]
 
 
-chatMessageDecoder : JD.Decoder ChatMessage
+chatMessageDecoder : JD.Decoder Message
 chatMessageDecoder =
-    JD.object2 ChatMessage
+    JD.object2 Message
         (JD.oneOf
             [ ("user" := JD.string)
             , JD.succeed "anonymous"

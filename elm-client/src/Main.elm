@@ -15,10 +15,6 @@ import Dict exposing (Dict)
 import Chat
 
 
--- Our model will track a list of messages and the text for our new message to
--- send.  We only support chatting in a single channel for now.
-
-
 type alias UserPresence =
     { online_at : String
     , device : String
@@ -41,6 +37,7 @@ type Msg
     | HandlePresenceState JE.Value
     | HandlePresenceDiff JE.Value
     | ReceiveChatMessage String JE.Value
+    | ChatMsg Chat.Msg
 
 
 initialModel : Model
@@ -116,11 +113,55 @@ update msg model =
 
         ReceiveChatMessage channelName chatMessage ->
             let
-                newChat =
+                ( newChat, maybeChatOutMsg ) =
                     model.chat
                         |> Chat.update (Chat.ReceiveMessage chatMessage)
             in
-                { model | chat = newChat } ! []
+                case maybeChatOutMsg of
+                    Nothing ->
+                        { model | chat = newChat } ! []
+
+                    Just chatOutMsg ->
+                        handleChatOutMsg chatOutMsg model
+
+        ChatMsg chatMsg ->
+            let
+                ( newChat, maybeChatOutMsg ) =
+                    model.chat |> Chat.update chatMsg
+            in
+                case maybeChatOutMsg of
+                    Nothing ->
+                        { model | chat = newChat } ! []
+
+                    Just chatOutMsg ->
+                        handleChatOutMsg chatOutMsg model
+
+
+handleChatOutMsg : Chat.OutMsg -> Model -> ( Model, Cmd Msg )
+handleChatOutMsg outMsg model =
+    case outMsg of
+        Chat.Say something ->
+            case model.phxSocket of
+                Nothing ->
+                    model ! []
+
+                Just modelPhxSocket ->
+                    let
+                        payload =
+                            (JE.object [ ( "body", JE.string something ) ])
+
+                        push' =
+                            Phoenix.Push.init "new:msg" "room:lobby"
+                                |> Phoenix.Push.withPayload payload
+
+                        ( phxSocket, phxCmd ) =
+                            Phoenix.Socket.push push' modelPhxSocket
+                    in
+                        ( { model
+                            | phxSocket = Just phxSocket
+                          }
+                        , Cmd.map PhoenixMsg phxCmd
+                        )
 
 
 userPresenceDecoder : JD.Decoder UserPresence
@@ -139,7 +180,7 @@ chatInterfaceView : Model -> Html Msg
 chatInterfaceView model =
     div []
         [ lobbyManagementView
-        , Chat.view model.chat
+        , App.map ChatMsg <| Chat.view model.chat
         ]
 
 
