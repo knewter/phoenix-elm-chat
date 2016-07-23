@@ -43,16 +43,18 @@ initialModel =
     }
 
 
-update : Msg -> Model -> ( Model, Maybe OutMsg )
+update : Msg -> Model -> ( Model, Cmd Msg, Maybe OutMsg )
 update msg model =
     case msg of
         SetNewMessage string ->
             ( { model | newMessage = string }
+            , Cmd.none
             , Nothing
             )
 
         SendMessage ->
             ( { model | newMessage = "" }
+            , Cmd.none
             , Just <| Say model.newMessage
             )
 
@@ -60,11 +62,13 @@ update msg model =
             case JD.decodeValue chatMessageDecoder raw of
                 Ok chatMessage ->
                     ( { model | messages = model.messages ++ [ chatMessage ] }
+                    , Cmd.none
                     , Nothing
                     )
 
                 Err error ->
                     ( model
+                    , Cmd.none
                     , Nothing
                     )
 

@@ -113,7 +113,7 @@ update msg model =
 
         ReceiveChatMessage channelName chatMessage ->
             let
-                ( newChat, maybeChatOutMsg ) =
+                ( newChat, chatCmd, maybeChatOutMsg ) =
                     model.chat
                         |> Chat.update (Chat.ReceiveMessage chatMessage)
             in
@@ -126,7 +126,7 @@ update msg model =
 
         ChatMsg chatMsg ->
             let
-                ( newChat, maybeChatOutMsg ) =
+                ( newChat, chatCmd, maybeChatOutMsg ) =
                     model.chat |> Chat.update chatMsg
             in
                 case maybeChatOutMsg of
