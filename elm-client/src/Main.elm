@@ -48,7 +48,7 @@ type alias Model =
 
 type Msg
     = SetNewMessage String
-    | JoinChannel
+    | JoinChannel String
     | PhoenixMsg (Phoenix.Socket.Msg Msg)
     | SendMessage
     | ReceiveChatMessage JE.Value
@@ -89,7 +89,7 @@ update msg model =
         SetNewMessage string ->
             { model | newMessage = string } ! []
 
-        JoinChannel ->
+        JoinChannel channelName ->
             case model.phxSocket of
                 Nothing ->
                     model ! []
@@ -97,7 +97,7 @@ update msg model =
                 Just modelPhxSocket ->
                     let
                         channel =
-                            Phoenix.Channel.init "room:lobby"
+                            Phoenix.Channel.init channelName
 
                         ( phxSocket, phxCmd ) =
                             Phoenix.Socket.join channel modelPhxSocket
@@ -219,7 +219,7 @@ userPresenceDecoder =
 
 lobbyManagementView : Html Msg
 lobbyManagementView =
-    button [ onClick JoinChannel ] [ text "Join lobby" ]
+    button [ onClick (JoinChannel "room:lobby") ] [ text "Join lobby" ]
 
 
 chatInterfaceView : Model -> Html Msg
