@@ -40,6 +40,7 @@ type Msg
     | ConnectSocket
     | HandlePresenceState JE.Value
     | HandlePresenceDiff JE.Value
+    | ReceiveChatMessage String JE.Value
 
 
 initialModel : Model
@@ -58,7 +59,6 @@ socketServer username =
 
 initPhxSocket : String -> Phoenix.Socket.Socket Msg
 initPhxSocket username =
-    --|> Phoenix.Socket.on "new:msg" "room:lobby" ReceiveChatMessage
     Phoenix.Socket.init (socketServer username)
         |> Phoenix.Socket.withDebug
         |> Phoenix.Socket.on "presence_state" "room:lobby" HandlePresenceState
@@ -80,8 +80,11 @@ update msg model =
 
                         ( phxSocket, phxCmd ) =
                             Phoenix.Socket.join channel modelPhxSocket
+
+                        phxSocket2 =
+                            Phoenix.Socket.on "new:msg" channelName (ReceiveChatMessage channelName) phxSocket
                     in
-                        ( { model | phxSocket = Just phxSocket }
+                        ( { model | phxSocket = Just phxSocket2 }
                         , Cmd.map PhoenixMsg phxCmd
                         )
 
@@ -110,6 +113,14 @@ update msg model =
 
         HandlePresenceDiff raw ->
             model ! []
+
+        ReceiveChatMessage channelName chatMessage ->
+            let
+                newChat =
+                    model.chat
+                        |> Chat.update (Chat.ReceiveMessage chatMessage)
+            in
+                { model | chat = newChat } ! []
 
 
 userPresenceDecoder : JD.Decoder UserPresence

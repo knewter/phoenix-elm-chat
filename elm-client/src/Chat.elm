@@ -1,4 +1,4 @@
-module Chat exposing (view, initialModel, Model)
+module Chat exposing (view, initialModel, update, Model, Msg(..))
 
 import Html exposing (..)
 import Html.Attributes exposing (value, placeholder, class)
@@ -9,7 +9,7 @@ import Json.Decode as JD exposing ((:=))
 
 type Msg
     = SetNewMessage String
-    | ReceiveChatMessage JE.Value
+    | ReceiveMessage JE.Value
     | SendMessage
 
 
@@ -70,7 +70,7 @@ update msg model =
             --             )
             model
 
-        ReceiveChatMessage raw ->
+        ReceiveMessage raw ->
             case JD.decodeValue chatMessageDecoder raw of
                 Ok chatMessage ->
                     { model | messages = model.messages ++ [ chatMessage ] }
