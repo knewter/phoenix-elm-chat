@@ -1,8 +1,29 @@
-module Chat exposing (view)
+module Chat exposing (view, Model)
 
 import Html exposing (..)
 import Html.Attributes exposing (value, placeholder, class)
 import Html.Events exposing (onInput, onClick, onSubmit)
+
+
+type Msg
+    = SetNewMessage String
+    | ReceiveChatMessage JE.Value
+    | SendMessage
+
+
+type alias Model =
+    { newMessage : String
+    , messages : List ChatMessage
+    , users : List User
+    }
+
+
+initialModel : Model
+initialModel =
+    { newMessage = ""
+    , messages = []
+    , users = []
+    }
 
 
 view model =

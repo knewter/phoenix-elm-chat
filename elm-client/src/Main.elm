@@ -37,21 +37,16 @@ type alias ChatMessage =
 
 
 type alias Model =
-    { newMessage : String
-    , messages : List ChatMessage
-    , username : String
-    , users : List User
+    { username : String
+    , chat : Chat.Model
     , phxSocket : Maybe (Phoenix.Socket.Socket Msg)
     , phxPresences : PresenceState UserPresence
     }
 
 
 type Msg
-    = SetNewMessage String
-    | JoinChannel String
+    = JoinChannel String
     | PhoenixMsg (Phoenix.Socket.Msg Msg)
-    | SendMessage
-    | ReceiveChatMessage JE.Value
     | SetUsername String
     | ConnectSocket
     | HandlePresenceState JE.Value
@@ -60,10 +55,8 @@ type Msg
 
 initialModel : Model
 initialModel =
-    { newMessage = ""
-    , messages = []
-    , username = ""
-    , users = []
+    { username = ""
+    , chat = Chat.initialModel
     , phxSocket = Nothing
     , phxPresences = Dict.empty
     }
