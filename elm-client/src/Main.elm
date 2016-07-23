@@ -19,20 +19,9 @@ import Chat
 -- send.  We only support chatting in a single channel for now.
 
 
-type alias User =
-    { name : String
-    }
-
-
 type alias UserPresence =
     { online_at : String
     , device : String
-    }
-
-
-type alias ChatMessage =
-    { user : String
-    , body : String
     }
 
 

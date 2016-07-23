@@ -3,6 +3,8 @@ module Chat exposing (view, Model)
 import Html exposing (..)
 import Html.Attributes exposing (value, placeholder, class)
 import Html.Events exposing (onInput, onClick, onSubmit)
+import Json.Encode as JE
+import Json.Decode as JD exposing ((:=))
 
 
 type Msg
@@ -15,6 +17,17 @@ type alias Model =
     { newMessage : String
     , messages : List ChatMessage
     , users : List User
+    }
+
+
+type alias User =
+    { name : String
+    }
+
+
+type alias ChatMessage =
+    { user : String
+    , body : String
     }
 
 
