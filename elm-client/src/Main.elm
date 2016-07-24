@@ -13,6 +13,7 @@ import Json.Decode as JD exposing ((:=))
 import Debug
 import Dict exposing (Dict)
 import Chat
+import OutMessage
 
 
 type alias UserPresence =
@@ -112,17 +113,12 @@ update msg model =
             model ! []
 
         ReceiveChatMessage channelName chatMessage ->
-            let
-                ( newChat, chatCmd, maybeChatOutMsg ) =
-                    model.chat
-                        |> Chat.update (Chat.ReceiveMessage chatMessage)
-            in
-                case maybeChatOutMsg of
-                    Nothing ->
-                        { model | chat = newChat } ! []
-
-                    Just chatOutMsg ->
-                        handleChatOutMsg chatOutMsg model
+            model.chat
+                |> Chat.update (Chat.ReceiveMessage chatMessage)
+                |> OutMessage.mapComponent
+                    (\newChat -> { model | chat = newChat })
+                |> OutMessage.mapCmd ChatMsg
+                |> OutMessage.evaluateMaybe handleChatOutMsg Cmd.none
 
         ChatMsg chatMsg ->
             let
