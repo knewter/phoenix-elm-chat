@@ -122,7 +122,7 @@ update msg model =
 
         ChatMsg chatMsg ->
             model.chat
-                |> Chat.update (Chat.ReceiveMessage chatMessage)
+                |> Chat.update chatMsg
                 |> OutMessage.mapComponent
                     (\newChat -> { model | chat = newChat })
                 |> OutMessage.mapCmd ChatMsg
