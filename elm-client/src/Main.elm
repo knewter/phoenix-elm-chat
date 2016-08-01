@@ -2,7 +2,7 @@ module Main exposing (..)
 
 import Html.App as App
 import Html exposing (..)
-import Html.Attributes exposing (value, placeholder, class)
+import Html.Attributes exposing (value, placeholder, class, type')
 import Html.Events exposing (onInput, onClick, onSubmit)
 import Phoenix.Socket
 import Phoenix.Channel
@@ -14,6 +14,8 @@ import Debug
 import Dict exposing (Dict)
 import Chat
 import OutMessage
+import Styles
+import Types exposing (User, Message)
 
 
 type alias UserPresence =
@@ -27,6 +29,7 @@ type alias Model =
     , chat : Chat.Model
     , phxSocket : Maybe (Phoenix.Socket.Socket Msg)
     , phxPresences : PresenceState UserPresence
+    , users : List User
     }
 
 
@@ -39,14 +42,18 @@ type Msg
     | HandlePresenceDiff JE.Value
     | ReceiveChatMessage String JE.Value
     | ChatMsg Chat.Msg
+    | ChatWithUser User
 
 
 initialModel : Model
 initialModel =
-    { username = ""
-    , chat = Chat.initialModel
-    , phxSocket = Nothing
+    { username = "knewter"
+    , chat =
+        Chat.initialModel
+        --, phxSocket = Nothing
+    , phxSocket = Just (initPhxSocket "knewter")
     , phxPresences = Dict.empty
+    , users = []
     }
 
 
@@ -107,7 +114,24 @@ update msg model =
             { model | phxSocket = Just (initPhxSocket model.username) } ! []
 
         HandlePresenceState raw ->
-            model ! []
+            case JD.decodeValue (presenceStateDecoder userPresenceDecoder) raw of
+                Ok presenceState ->
+                    let
+                        newPresenceState =
+                            model.phxPresences |> syncState presenceState
+
+                        users =
+                            Dict.keys presenceState
+                                |> List.map User
+                    in
+                        { model | users = users, phxPresences = newPresenceState } ! []
+
+                Err error ->
+                    let
+                        _ =
+                            Debug.log "Error" error
+                    in
+                        model ! []
 
         HandlePresenceDiff raw ->
             model ! []
@@ -127,6 +151,14 @@ update msg model =
                     (\newChat -> { model | chat = newChat })
                 |> OutMessage.mapCmd ChatMsg
                 |> OutMessage.evaluateMaybe handleChatOutMsg Cmd.none
+
+        ChatWithUser user ->
+            {-
+               This is really:
+
+               - Join a channel for this chat, we'll hardcode it for now as "room:userchat"
+            -}
+            update (JoinChannel "room:userchat") model
 
 
 handleChatOutMsg : Chat.OutMsg -> Model -> ( Model, Cmd Msg )
@@ -170,10 +202,39 @@ lobbyManagementView =
 
 chatInterfaceView : Model -> Html Msg
 chatInterfaceView model =
-    div []
-        [ lobbyManagementView
-        , App.map ChatMsg <| Chat.view model.chat
-        ]
+    let
+        compiled =
+            Styles.compile Styles.css
+    in
+        div []
+            [ node "style" [ type' "text/css" ] [ text compiled.css ]
+            , lobbyManagementView
+            , rosterView model
+            , App.map ChatMsg <| Chat.view model.chat
+            ]
+
+
+rosterView : Model -> Html Msg
+rosterView model =
+    let
+        { class } =
+            Styles.mainNamespace
+    in
+        div [ class [ Styles.Roster ] ]
+            (List.map userView model.users)
+
+
+userView : User -> Html Msg
+userView user =
+    let
+        { class } =
+            Styles.mainNamespace
+    in
+        div
+            [ class [ Styles.RosterUser ]
+            , onClick (ChatWithUser user)
+            ]
+            [ text user.name ]
 
 
 setUsernameView : Html Msg

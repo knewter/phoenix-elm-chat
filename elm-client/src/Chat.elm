@@ -5,6 +5,8 @@ import Html.Attributes exposing (value, placeholder, class)
 import Html.Events exposing (onInput, onClick, onSubmit)
 import Json.Encode as JE
 import Json.Decode as JD exposing ((:=))
+import Styles
+import Types exposing (User, Message)
 
 
 type Msg
@@ -21,17 +23,6 @@ type alias Model =
     { newMessage : String
     , messages : List Message
     , users : List User
-    }
-
-
-type alias User =
-    { name : String
-    }
-
-
-type alias Message =
-    { user : String
-    , body : String
     }
 
 
@@ -75,17 +66,25 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    div []
-        [ messageListView model
-        , messageInputView model
-        , userListView model
-        ]
+    let
+        { class } =
+            Styles.mainNamespace
+    in
+        div [ class [ Styles.Chat ] ]
+            [ messageListView model
+            , messageInputView model
+            , userListView model
+            ]
 
 
 messageListView : Model -> Html Msg
 messageListView model =
-    div [ class "messages" ]
-        (List.map viewMessage model.messages)
+    let
+        { class } =
+            Styles.mainNamespace
+    in
+        div [ class [ Styles.Messages ] ]
+            (List.map viewMessage model.messages)
 
 
 messageInputView : Model -> Html Msg
@@ -109,10 +108,14 @@ userView user =
 
 viewMessage : Message -> Html Msg
 viewMessage message =
-    div [ class "message" ]
-        [ span [ class "user" ] [ text (message.user ++ ": ") ]
-        , span [ class "body" ] [ text message.body ]
-        ]
+    let
+        { class } =
+            Styles.mainNamespace
+    in
+        div [ class [ Styles.Message ] ]
+            [ span [ class [ Styles.MessageUser ] ] [ text (message.user ++ ": ") ]
+            , span [ class [ Styles.MessageBody ] ] [ text message.body ]
+            ]
 
 
 chatMessageDecoder : JD.Decoder Message
