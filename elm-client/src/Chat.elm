@@ -21,6 +21,7 @@ type OutMsg
 
 type alias Model =
     { newMessage : String
+    , topic : String
     , messages : List Message
     , users : List User
     }
@@ -29,6 +30,7 @@ type alias Model =
 initialModel : Model
 initialModel =
     { newMessage = ""
+    , topic = ""
     , messages = []
     , users = []
     }

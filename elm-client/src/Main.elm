@@ -26,7 +26,7 @@ type alias UserPresence =
 
 type alias Model =
     { username : String
-    , chat : Chat.Model
+    , chats : Dict String Chat.Model
     , phxSocket : Maybe (Phoenix.Socket.Socket Msg)
     , phxPresences : PresenceState UserPresence
     , users : List User
@@ -41,17 +41,16 @@ type Msg
     | HandlePresenceState JE.Value
     | HandlePresenceDiff JE.Value
     | ReceiveChatMessage String JE.Value
-    | ChatMsg Chat.Msg
+    | ChatMsg String Chat.Msg
     | ChatWithUser User
 
 
 initialModel : Model
 initialModel =
-    { username = "knewter"
-    , chat =
-        Chat.initialModel
-        --, phxSocket = Nothing
-    , phxSocket = Just (initPhxSocket "knewter")
+    { username = ""
+    , chats =
+        Dict.empty
+    , phxSocket = Nothing
     , phxPresences = Dict.empty
     , users = []
     }
@@ -83,14 +82,27 @@ update msg model =
                         channel =
                             Phoenix.Channel.init channelName
 
-                        ( phxSocket, phxCmd ) =
+                        ( phxSocket, phxJoinCmd ) =
                             Phoenix.Socket.join channel modelPhxSocket
 
                         phxSocket2 =
                             Phoenix.Socket.on "new:msg" channelName (ReceiveChatMessage channelName) phxSocket
+
+                        initialChatModel =
+                            Chat.initialModel
+
+                        newChat =
+                            { initialChatModel | topic = channelName }
+
+                        newChats =
+                            model.chats
+                                |> Dict.insert channelName newChat
                     in
-                        ( { model | phxSocket = Just phxSocket2 }
-                        , Cmd.map PhoenixMsg phxCmd
+                        ( { model
+                            | phxSocket = Just phxSocket2
+                            , chats = newChats
+                          }
+                        , Cmd.map PhoenixMsg phxJoinCmd
                         )
 
         PhoenixMsg msg ->
@@ -134,23 +146,72 @@ update msg model =
                         model ! []
 
         HandlePresenceDiff raw ->
-            model ! []
+            case JD.decodeValue (presenceDiffDecoder userPresenceDecoder) raw of
+                Ok presenceDiff ->
+                    let
+                        newPresenceState =
+                            model.phxPresences |> syncDiff presenceDiff
+
+                        users =
+                            Dict.keys newPresenceState
+                                |> List.map User
+                    in
+                        { model | users = users, phxPresences = newPresenceState } ! []
+
+                Err error ->
+                    let
+                        _ =
+                            Debug.log "Error" error
+                    in
+                        model ! []
 
         ReceiveChatMessage channelName chatMessage ->
-            model.chat
-                |> Chat.update (Chat.ReceiveMessage chatMessage)
-                |> OutMessage.mapComponent
-                    (\newChat -> { model | chat = newChat })
-                |> OutMessage.mapCmd ChatMsg
-                |> OutMessage.evaluateMaybe handleChatOutMsg Cmd.none
+            case model.chats |> Dict.get channelName of
+                Nothing ->
+                    model ! []
 
-        ChatMsg chatMsg ->
-            model.chat
-                |> Chat.update chatMsg
-                |> OutMessage.mapComponent
-                    (\newChat -> { model | chat = newChat })
-                |> OutMessage.mapCmd ChatMsg
-                |> OutMessage.evaluateMaybe handleChatOutMsg Cmd.none
+                Just chatModel ->
+                    let
+                        ( newChat, chatCmd, outMsg ) =
+                            Chat.update (Chat.ReceiveMessage chatMessage) chatModel
+
+                        newChats =
+                            Dict.insert channelName newChat model.chats
+
+                        newModel =
+                            { model | chats = newChats }
+
+                        newCmd =
+                            Cmd.map (ChatMsg channelName) chatCmd
+
+                        ( newModel', newCmd' ) =
+                            handleChatOutMsg channelName outMsg ( newModel, newCmd )
+                    in
+                        ( newModel', newCmd' )
+
+        ChatMsg channelName chatMsg ->
+            case Dict.get channelName model.chats of
+                Nothing ->
+                    model ! []
+
+                Just chatModel ->
+                    let
+                        ( newChat, chatCmd, outMsg ) =
+                            Chat.update chatMsg chatModel
+
+                        newChats =
+                            Dict.insert channelName newChat model.chats
+
+                        newModel =
+                            { model | chats = newChats }
+
+                        newCmd =
+                            Cmd.map (ChatMsg channelName) chatCmd
+
+                        ( newModel', newCmd' ) =
+                            handleChatOutMsg channelName outMsg ( newModel, newCmd )
+                    in
+                        ( newModel', newCmd' )
 
         ChatWithUser user ->
             {-
@@ -161,31 +222,39 @@ update msg model =
             update (JoinChannel "room:userchat") model
 
 
-handleChatOutMsg : Chat.OutMsg -> Model -> ( Model, Cmd Msg )
-handleChatOutMsg outMsg model =
-    case outMsg of
-        Chat.Say something ->
-            case model.phxSocket of
-                Nothing ->
-                    model ! []
+handleChatOutMsg : String -> Maybe Chat.OutMsg -> ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
+handleChatOutMsg channelName maybeOutMsg ( model, cmd ) =
+    case maybeOutMsg of
+        Nothing ->
+            ( model, cmd )
 
-                Just modelPhxSocket ->
-                    let
-                        payload =
-                            (JE.object [ ( "body", JE.string something ) ])
+        Just outMsg ->
+            case outMsg of
+                Chat.Say message ->
+                    case model.phxSocket of
+                        Nothing ->
+                            ( model, cmd )
 
-                        push' =
-                            Phoenix.Push.init "new:msg" "room:lobby"
-                                |> Phoenix.Push.withPayload payload
+                        Just modelPhxSocket ->
+                            let
+                                payload =
+                                    (JE.object [ ( "body", JE.string message ) ])
 
-                        ( phxSocket, phxCmd ) =
-                            Phoenix.Socket.push push' modelPhxSocket
-                    in
-                        ( { model
-                            | phxSocket = Just phxSocket
-                          }
-                        , Cmd.map PhoenixMsg phxCmd
-                        )
+                                push' =
+                                    Phoenix.Push.init "new:msg" channelName
+                                        |> Phoenix.Push.withPayload payload
+
+                                ( phxSocket, phxCmd ) =
+                                    Phoenix.Socket.push push' modelPhxSocket
+                            in
+                                ( { model
+                                    | phxSocket = Just phxSocket
+                                  }
+                                , Cmd.batch
+                                    [ cmd
+                                    , Cmd.map PhoenixMsg phxCmd
+                                    ]
+                                )
 
 
 userPresenceDecoder : JD.Decoder UserPresence
@@ -210,8 +279,25 @@ chatInterfaceView model =
             [ node "style" [ type' "text/css" ] [ text compiled.css ]
             , lobbyManagementView
             , rosterView model
-            , App.map ChatMsg <| Chat.view model.chat
+              --, App.map ChatMsg <| Chat.view model.chat
+            , chatsView model
             ]
+
+
+chatViewListItem : ( String, Chat.Model ) -> Html Msg
+chatViewListItem ( channelName, chatModel ) =
+    li [] [ App.map (ChatMsg channelName) (Chat.view chatModel) ]
+
+
+chatsView : Model -> Html Msg
+chatsView model =
+    let
+        chatViews =
+            model.chats
+                |> Dict.toList
+                |> List.map chatViewListItem
+    in
+        ul [] chatViews
 
 
 rosterView : Model -> Html Msg
