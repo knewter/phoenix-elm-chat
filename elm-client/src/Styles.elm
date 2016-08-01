@@ -13,12 +13,15 @@ type CssIds
 
 type CssClasses
     = Chat
+    | ChatsList
     | Messages
     | Message
     | MessageUser
     | MessageBody
+    | ChatInput
     | Roster
     | RosterUser
+    | ChatClientContainer
 
 
 compile =
@@ -33,16 +36,36 @@ mainNamespace =
 css : Css.Stylesheet
 css =
     (stylesheet << namespace mainNamespace.name)
-        [ Css.Elements.body
+        [ (.) ChatClientContainer
             [ fontFamily sansSerif
+            , descendants
+                [ everything
+                    [ boxSizing borderBox
+                    ]
+                ]
+            ]
+        , (.) ChatsList
+            [ children
+                [ Css.Elements.li
+                    [ property "list-style-type" "none"
+                    ]
+                ]
             ]
         , (.) Chat
             [ backgroundColor V.chatBackgroundColor
             , display inlineBlock
-            , width (Css.em 20)
+            , width (em 20)
+            , children
+                [ Css.Elements.h2
+                    [ margin (px 0)
+                    , backgroundColor V.primaryColor
+                    , padding (em 0.5)
+                    , color V.primaryTextColor
+                    ]
+                ]
             ]
         , (.) Messages
-            [ padding (Css.em 1)
+            [ padding (em 1)
             ]
         , (.) Message
             []
@@ -51,13 +74,16 @@ css =
         , (.) MessageBody
             [ color V.messageBodyColor ]
         , (.) Roster
-            [ width (Css.em 10)
+            [ width (em 10)
             , display inlineBlock
-            , padding (Css.em 1)
+            , padding (em 1)
             ]
         , (.) RosterUser
-            [ padding (Css.em 0.5)
+            [ padding (em 0.5)
             , color (rgb 100 100 100)
             , cursor pointer
+            ]
+        , (.) ChatInput
+            [ width (pct 100)
             ]
         ]

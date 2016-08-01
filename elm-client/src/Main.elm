@@ -274,8 +274,11 @@ chatInterfaceView model =
     let
         compiled =
             Styles.compile Styles.css
+
+        { class } =
+            Styles.mainNamespace
     in
-        div []
+        div [ class [ Styles.ChatClientContainer ] ]
             [ node "style" [ type' "text/css" ] [ text compiled.css ]
             , lobbyManagementView
             , rosterView model
@@ -296,8 +299,13 @@ chatsView model =
             model.chats
                 |> Dict.toList
                 |> List.map chatViewListItem
+
+        { class } =
+            Styles.mainNamespace
     in
-        ul [] chatViews
+        ul
+            [ class [ Styles.ChatsList ] ]
+            chatViews
 
 
 rosterView : Model -> Html Msg
