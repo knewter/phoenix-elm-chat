@@ -1,7 +1,7 @@
 module Chat exposing (view, initialModel, update, Model, Msg(..), OutMsg(..))
 
 import Html exposing (..)
-import Html.Attributes exposing (defaultValue, placeholder, class)
+import Html.Attributes exposing (value, placeholder, class)
 import Html.Events exposing (onInput, onClick, onSubmit)
 import Json.Encode as JE
 import Json.Decode as JD exposing ((:=))
@@ -102,7 +102,7 @@ messageInputView model =
                 [ placeholder "Message..."
                 , class [ Styles.ChatInput ]
                 , onInput SetNewMessage
-                , defaultValue model.newMessage
+                , value model.newMessage
                 ]
                 []
             ]
