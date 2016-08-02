@@ -22,6 +22,7 @@ type CssClasses
     | Roster
     | RosterUser
     | ChatClientContainer
+    | ChatWindowContainer
 
 
 compile =
@@ -43,6 +44,10 @@ css =
                     [ boxSizing borderBox
                     ]
                 ]
+            ]
+        , (.) ChatWindowContainer
+            [ displayFlex
+            , flexDirection row
             ]
         , (.) ChatsList
             [ children
@@ -77,6 +82,17 @@ css =
             [ width (em 10)
             , display inlineBlock
             , padding (em 1)
+            , children
+                [ Css.Elements.ul
+                    [ margin (px 0)
+                    , padding (px 0)
+                    , children
+                        [ Css.Elements.li
+                            [ property "list-style-type" "none"
+                            ]
+                        ]
+                    ]
+                ]
             ]
         , (.) RosterUser
             [ padding (em 0.5)

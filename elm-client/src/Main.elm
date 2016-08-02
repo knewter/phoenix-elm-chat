@@ -30,6 +30,7 @@ type alias Model =
     , phxSocket : Maybe (Phoenix.Socket.Socket Msg)
     , phxPresences : PresenceState UserPresence
     , users : List User
+    , currentChat : Maybe String
     }
 
 
@@ -43,6 +44,7 @@ type Msg
     | ReceiveChatMessage String JE.Value
     | ChatMsg String Chat.Msg
     | ChatWithUser User
+    | ShowChat String
 
 
 initialModel : Model
@@ -53,6 +55,7 @@ initialModel =
     , phxSocket = Nothing
     , phxPresences = Dict.empty
     , users = []
+    , currentChat = Nothing
     }
 
 
@@ -101,6 +104,7 @@ update msg model =
                         ( { model
                             | phxSocket = Just phxSocket2
                             , chats = newChats
+                            , currentChat = Just channelName
                           }
                         , Cmd.map PhoenixMsg phxJoinCmd
                         )
@@ -225,6 +229,9 @@ update msg model =
             in
                 update (JoinChannel channel) model
 
+        ShowChat channel ->
+            { model | currentChat = Just channel } ! []
+
 
 
 {-
@@ -304,31 +311,32 @@ chatInterfaceView model =
         div [ class [ Styles.ChatClientContainer ] ]
             [ node "style" [ type' "text/css" ] [ text compiled.css ]
             , lobbyManagementView
-            , rosterView model
-              --, App.map ChatMsg <| Chat.view model.chat
-            , chatsView model
+            , div [ class [ Styles.ChatWindowContainer ] ]
+                [ rosterView model
+                  --, App.map ChatMsg <| Chat.view model.chat
+                , chatsView model
+                ]
             ]
 
 
-chatViewListItem : ( String, Chat.Model ) -> Html Msg
-chatViewListItem ( channelName, chatModel ) =
-    li [] [ App.map (ChatMsg channelName) (Chat.view chatModel) ]
+chatView : ( String, Chat.Model ) -> Html Msg
+chatView ( channelName, chatModel ) =
+    div [] [ App.map (ChatMsg channelName) (Chat.view chatModel) ]
 
 
 chatsView : Model -> Html Msg
 chatsView model =
-    let
-        chatViews =
-            model.chats
-                |> Dict.toList
-                |> List.map chatViewListItem
+    case model.currentChat of
+        Nothing ->
+            div [] []
 
-        { class } =
-            Styles.mainNamespace
-    in
-        ul
-            [ class [ Styles.ChatsList ] ]
-            chatViews
+        Just currentChat ->
+            case Dict.get currentChat model.chats of
+                Nothing ->
+                    div [] []
+
+                Just chat ->
+                    chatView ( currentChat, chat )
 
 
 rosterView : Model -> Html Msg
@@ -338,7 +346,13 @@ rosterView model =
             Styles.mainNamespace
     in
         div [ class [ Styles.Roster ] ]
-            (List.map userView model.users)
+            [ h3 [] [ text "Contacts" ]
+            , ul []
+                (List.map
+                    userView
+                    model.users
+                )
+            ]
 
 
 userView : User -> Html Msg
@@ -347,7 +361,7 @@ userView user =
         { class } =
             Styles.mainNamespace
     in
-        div
+        li
             [ class [ Styles.RosterUser ]
             , onClick (ChatWithUser user)
             ]
