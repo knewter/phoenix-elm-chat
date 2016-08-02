@@ -41,6 +41,7 @@ type Msg
     | ConnectSocket
     | HandlePresenceState JE.Value
     | HandlePresenceDiff JE.Value
+    | HandleChatJoinCommand JE.Value
     | ReceiveChatMessage String JE.Value
     | ChatMsg String Chat.Msg
     | ChatWithUser User
@@ -72,6 +73,10 @@ initPhxSocket username =
         |> Phoenix.Socket.on "presence_diff" "room:lobby" HandlePresenceDiff
 
 
+
+--|> Phoenix.Socket.on "chat:join" "room:lobby" HandleChatJoinCommand
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -89,7 +94,8 @@ update msg model =
                             Phoenix.Socket.join channel modelPhxSocket
 
                         phxSocket2 =
-                            Phoenix.Socket.on "new:msg" channelName (ReceiveChatMessage channelName) phxSocket
+                            phxSocket
+                                |> Phoenix.Socket.on "new:msg" channelName (ReceiveChatMessage channelName)
 
                         initialChatModel =
                             Chat.initialModel
@@ -127,7 +133,29 @@ update msg model =
             { model | username = username } ! []
 
         ConnectSocket ->
-            { model | phxSocket = Just (initPhxSocket model.username) } ! []
+            let
+                _ =
+                    Debug.log "ConnectSocket" (toString model)
+
+                controlChannelName' =
+                    controlChannelName model.username
+
+                controlChannel =
+                    Phoenix.Channel.init controlChannelName'
+
+                phxSocketInit =
+                    (initPhxSocket model.username)
+
+                ( phxSocket, phxJoinCmd ) =
+                    Phoenix.Socket.join controlChannel phxSocketInit
+
+                phxSocket2 =
+                    phxSocket
+                        |> Phoenix.Socket.on "chat:join" controlChannelName' HandleChatJoinCommand
+            in
+                ( { model | phxSocket = Just phxSocket2 }
+                , Cmd.map PhoenixMsg phxJoinCmd
+                )
 
         HandlePresenceState raw ->
             case JD.decodeValue (presenceStateDecoder userPresenceDecoder) raw of
@@ -168,6 +196,22 @@ update msg model =
                             Debug.log "Error" error
                     in
                         model ! []
+
+        HandleChatJoinCommand raw ->
+            let
+                _ =
+                    Debug.log "here" 1
+            in
+                case JD.decodeValue chatJoinDecoder raw of
+                    Ok channelToJoin ->
+                        update (JoinChannel channelToJoin) model
+
+                    Err error ->
+                        let
+                            _ =
+                                Debug.log "Error" error
+                        in
+                            model ! []
 
         ReceiveChatMessage channelName chatMessage ->
             case model.chats |> Dict.get channelName of
@@ -231,6 +275,20 @@ update msg model =
 
         ShowChat channel ->
             { model | currentChat = Just channel } ! []
+
+
+controlChannelName : String -> String
+controlChannelName username =
+    "control:" ++ username
+
+
+chatJoinDecoder : JD.Decoder String
+chatJoinDecoder =
+    let
+        _ =
+            Debug.log "zomg got here" 1
+    in
+        ("channel" := JD.string)
 
 
 

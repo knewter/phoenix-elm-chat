@@ -3,6 +3,7 @@ defmodule PresenceChat.UserSocket do
 
   ## Channels
   channel "room:*", PresenceChat.RoomChannel
+  channel "control:*", PresenceChat.ControlChannel
 
   ## Transports
   transport :websocket, Phoenix.Transports.WebSocket
