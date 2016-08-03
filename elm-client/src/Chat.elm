@@ -7,14 +7,18 @@ import Json.Encode as JE
 import Json.Decode as JD exposing ((:=))
 
 
-type Msg
+type InternalMsg
     = SetNewMessage String
     | ReceiveMessage JE.Value
-    | SendMessage
 
 
 type OutMsg
     = Say String
+
+
+type Msg
+    = ForSelf InternalMsg
+    | ForParent OutMsg
 
 
 type alias Model =
@@ -40,6 +44,12 @@ initialModel =
     { newMessage = ""
     , messages = []
     , users = []
+    }
+
+
+type alias TranslationDictionary msg =
+    { onInternalMsg : InternalMsg -> msg
+    , onSay : String -> msg
     }
 
 
