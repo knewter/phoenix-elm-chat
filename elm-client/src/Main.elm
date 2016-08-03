@@ -37,7 +37,8 @@ type Msg
     | HandlePresenceState JE.Value
     | HandlePresenceDiff JE.Value
     | ReceiveChatMessage String JE.Value
-    | ChatMsg Chat.Msg
+    | ChatMsg Chat.InternalMsg
+    | Say String
 
 
 initialModel : Model
@@ -60,6 +61,18 @@ initPhxSocket username =
         |> Phoenix.Socket.withDebug
         |> Phoenix.Socket.on "presence_state" "room:lobby" HandlePresenceState
         |> Phoenix.Socket.on "presence_diff" "room:lobby" HandlePresenceDiff
+
+
+chatTranslationDictionary : Chat.TranslationDictionary Msg
+chatTranslationDictionary =
+    { onInternalMsg = ChatMsg
+    , onSay = Say
+    }
+
+
+chatTranslator : Chat.Translator Msg
+chatTranslator =
+    Chat.translator chatTranslationDictionary
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -113,34 +126,20 @@ update msg model =
 
         ReceiveChatMessage channelName chatMessage ->
             let
-                ( newChat, maybeChatOutMsg ) =
+                newChat =
                     model.chat
                         |> Chat.update (Chat.ReceiveMessage chatMessage)
             in
-                case maybeChatOutMsg of
-                    Nothing ->
-                        { model | chat = newChat } ! []
-
-                    Just chatOutMsg ->
-                        handleChatOutMsg chatOutMsg model
+                { model | chat = newChat } ! []
 
         ChatMsg chatMsg ->
             let
-                ( newChat, maybeChatOutMsg ) =
+                newChat =
                     model.chat |> Chat.update chatMsg
             in
-                case maybeChatOutMsg of
-                    Nothing ->
-                        { model | chat = newChat } ! []
+                { model | chat = newChat } ! []
 
-                    Just chatOutMsg ->
-                        handleChatOutMsg chatOutMsg model
-
-
-handleChatOutMsg : Chat.OutMsg -> Model -> ( Model, Cmd Msg )
-handleChatOutMsg outMsg model =
-    case outMsg of
-        Chat.Say something ->
+        Say something ->
             case model.phxSocket of
                 Nothing ->
                     model ! []
@@ -180,7 +179,7 @@ chatInterfaceView : Model -> Html Msg
 chatInterfaceView model =
     div []
         [ lobbyManagementView
-        , App.map ChatMsg <| Chat.view model.chat
+        , App.map chatTranslator <| Chat.view model.chat
         ]
 
 

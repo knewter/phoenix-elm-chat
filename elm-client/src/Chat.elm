@@ -1,4 +1,4 @@
-module Chat exposing (view, initialModel, update, Model, Msg(..), OutMsg(..))
+module Chat exposing (view, initialModel, update, Model, TranslationDictionary, InternalMsg(..), translator, Translator)
 
 import Html exposing (..)
 import Html.Attributes exposing (value, placeholder, class)
@@ -53,30 +53,33 @@ type alias TranslationDictionary msg =
     }
 
 
-update : Msg -> Model -> ( Model, Maybe OutMsg )
+type alias Translator parentMsg =
+    Msg -> parentMsg
+
+
+translator : TranslationDictionary parentMsg -> Translator parentMsg
+translator { onInternalMsg, onSay } msg =
+    case msg of
+        ForSelf internal ->
+            onInternalMsg internal
+
+        ForParent (Say something) ->
+            onSay something
+
+
+update : InternalMsg -> Model -> Model
 update msg model =
     case msg of
         SetNewMessage string ->
-            ( { model | newMessage = string }
-            , Nothing
-            )
-
-        SendMessage ->
-            ( { model | newMessage = "" }
-            , Just <| Say model.newMessage
-            )
+            { model | newMessage = string }
 
         ReceiveMessage raw ->
             case JD.decodeValue chatMessageDecoder raw of
                 Ok chatMessage ->
-                    ( { model | messages = model.messages ++ [ chatMessage ] }
-                    , Nothing
-                    )
+                    { model | messages = model.messages ++ [ chatMessage ] }
 
                 Err error ->
-                    ( model
-                    , Nothing
-                    )
+                    model
 
 
 view : Model -> Html Msg
@@ -96,8 +99,8 @@ messageListView model =
 
 messageInputView : Model -> Html Msg
 messageInputView model =
-    form [ onSubmit SendMessage ]
-        [ input [ placeholder "Message...", onInput SetNewMessage, value model.newMessage ] [] ]
+    form [ onSubmit (ForParent (Say model.newMessage)) ]
+        [ input [ placeholder "Message...", onInput (\a -> ForSelf (SetNewMessage a)), value model.newMessage ] [] ]
 
 
 userListView : Model -> Html Msg
