@@ -12,8 +12,6 @@ config :logger, level: :warn
 # Configure your database
 config :presence_chat, PresenceChat.Repo,
   adapter: Ecto.Adapters.Postgres,
-  username: "postgres",
-  password: "postgres",
   database: "presence_chat_test",
   hostname: "localhost",
   pool: Ecto.Adapters.SQL.Sandbox

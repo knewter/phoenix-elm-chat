@@ -3,6 +3,7 @@ defmodule PresenceChat.RoomChannel do
   alias PresenceChat.Presence
   require Logger
   @two_way_regex ~r/<->/
+  import PresenceChat.{ChatMessage, Repo}
 
   def join("room:" <> channel, msg, socket) do
     send self, {:after_join, msg}
@@ -13,7 +14,19 @@ defmodule PresenceChat.RoomChannel do
 
   def handle_in("new:msg", msg, socket) do
     broadcast socket, "new:msg", %{user: socket.assigns[:user], body: msg["body"]}
+    %PresenceChat.ChatMessage{username: socket.assigns[:user], body: msg["body"], channel: socket.topic}
+      |> PresenceChat.Repo.insert!
     {:reply, {:ok, %{msg: msg["body"]}}, socket}
+  end
+
+  def handle_in("history:fetch", _, socket) do
+    messages =
+      (from m in PresenceChat.ChatMessage,
+        where: m.channel == ^socket.topic
+      ) |> Repo.all
+        |> Enum.map &(%{user: &1.username, body: &1.body})
+    push socket, "history:list", %{history: messages}
+    {:reply, :ok, socket}
   end
 
   def handle_info({:after_join, msg}, socket) do
