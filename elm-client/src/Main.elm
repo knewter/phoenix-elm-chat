@@ -36,6 +36,7 @@ type alias Model =
 
 type Msg
     = JoinChannel String
+    | ShowChannel String
     | PhoenixMsg (Phoenix.Socket.Msg Msg)
     | SetUsername String
     | ConnectSocket
@@ -80,6 +81,13 @@ initPhxSocket username =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        ShowChannel channelName ->
+            let
+                ( newModel, newCmd ) =
+                    update (JoinChannel channelName) model
+            in
+                ( { newModel | currentChat = Just channelName }, newCmd )
+
         JoinChannel channelName ->
             case model.phxSocket of
                 Nothing ->
@@ -115,7 +123,6 @@ update msg model =
                                 ( { model
                                     | phxSocket = Just phxSocket2
                                     , chats = newChats
-                                    , currentChat = Just channelName
                                   }
                                 , Cmd.map PhoenixMsg phxJoinCmd
                                 )
@@ -272,7 +279,7 @@ update msg model =
                 channel =
                     twoWayChatChannelFor model.username user.name
             in
-                update (JoinChannel channel) model
+                update (ShowChannel channel) model
 
         ShowChat channel ->
             { model | currentChat = Just channel } ! []
@@ -355,7 +362,7 @@ userPresenceDecoder =
 
 lobbyManagementView : Html Msg
 lobbyManagementView =
-    button [ onClick (JoinChannel "room:lobby") ] [ text "Join lobby" ]
+    button [ onClick (ShowChannel "room:lobby") ] [ text "Join lobby" ]
 
 
 chatInterfaceView : Model -> Html Msg
@@ -408,21 +415,24 @@ roomsView model =
             [ h3 [] [ text "Rooms" ]
             , ul []
                 (List.map
-                    roomView
+                    (roomView model)
                     knownRooms
                 )
             ]
 
 
-roomView : String -> Html Msg
-roomView name =
+roomView : Model -> String -> Html Msg
+roomView model name =
     let
-        { class } =
+        { classList } =
             Styles.mainNamespace
+
+        isListening =
+            Dict.member name model.chats
     in
         li
-            [ class [ Styles.RosterUser ]
-            , onClick (JoinChannel name)
+            [ classList [ ( Styles.RosterUser, True ), ( Styles.Listening, isListening ) ]
+            , onClick (ShowChannel name)
             ]
             [ text name ]
 
@@ -437,20 +447,26 @@ rosterView model =
             [ h3 [] [ text "Contacts" ]
             , ul []
                 (List.map
-                    userView
+                    (userView model)
                     model.users
                 )
             ]
 
 
-userView : User -> Html Msg
-userView user =
+userView : Model -> User -> Html Msg
+userView model user =
     let
-        { class } =
+        { classList } =
             Styles.mainNamespace
+
+        chatChannel =
+            twoWayChatChannelFor model.username user.name
+
+        isListening =
+            Dict.member chatChannel model.chats
     in
         li
-            [ class [ Styles.RosterUser ]
+            [ classList [ ( Styles.RosterUser, True ), ( Styles.Listening, isListening ) ]
             , onClick (ChatWithUser user)
             ]
             [ text user.name ]

@@ -23,6 +23,7 @@ type CssClasses
     | RosterUser
     | ChatClientContainer
     | ChatWindowContainer
+    | Listening
 
 
 compile =
@@ -98,6 +99,9 @@ css =
             [ padding (em 0.5)
             , color (rgb 100 100 100)
             , cursor pointer
+            , (withClass Listening)
+                [ fontWeight bold
+                ]
             ]
         , (.) ChatInput
             [ width (pct 100)
