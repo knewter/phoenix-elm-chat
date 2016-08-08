@@ -86,34 +86,39 @@ update msg model =
                     model ! []
 
                 Just modelPhxSocket ->
-                    let
-                        channel =
-                            Phoenix.Channel.init channelName
+                    case Dict.member channelName model.chats of
+                        True ->
+                            { model | currentChat = Just channelName } ! []
 
-                        ( phxSocket, phxJoinCmd ) =
-                            Phoenix.Socket.join channel modelPhxSocket
+                        False ->
+                            let
+                                channel =
+                                    Phoenix.Channel.init channelName
 
-                        phxSocket2 =
-                            phxSocket
-                                |> Phoenix.Socket.on "new:msg" channelName (ReceiveChatMessage channelName)
+                                ( phxSocket, phxJoinCmd ) =
+                                    Phoenix.Socket.join channel modelPhxSocket
 
-                        initialChatModel =
-                            Chat.initialModel
+                                phxSocket2 =
+                                    phxSocket
+                                        |> Phoenix.Socket.on "new:msg" channelName (ReceiveChatMessage channelName)
 
-                        newChat =
-                            { initialChatModel | topic = channelName }
+                                initialChatModel =
+                                    Chat.initialModel
 
-                        newChats =
-                            model.chats
-                                |> Dict.insert channelName newChat
-                    in
-                        ( { model
-                            | phxSocket = Just phxSocket2
-                            , chats = newChats
-                            , currentChat = Just channelName
-                          }
-                        , Cmd.map PhoenixMsg phxJoinCmd
-                        )
+                                newChat =
+                                    { initialChatModel | topic = channelName }
+
+                                newChats =
+                                    model.chats
+                                        |> Dict.insert channelName newChat
+                            in
+                                ( { model
+                                    | phxSocket = Just phxSocket2
+                                    , chats = newChats
+                                    , currentChat = Just channelName
+                                  }
+                                , Cmd.map PhoenixMsg phxJoinCmd
+                                )
 
         PhoenixMsg msg ->
             case model.phxSocket of
@@ -198,20 +203,16 @@ update msg model =
                         model ! []
 
         HandleChatJoinCommand raw ->
-            let
-                _ =
-                    Debug.log "here" 1
-            in
-                case JD.decodeValue chatJoinDecoder raw of
-                    Ok channelToJoin ->
-                        update (JoinChannel channelToJoin) model
+            case JD.decodeValue chatJoinDecoder raw of
+                Ok channelToJoin ->
+                    update (JoinChannel channelToJoin) model
 
-                    Err error ->
-                        let
-                            _ =
-                                Debug.log "Error" error
-                        in
-                            model ! []
+                Err error ->
+                    let
+                        _ =
+                            Debug.log "Error" error
+                    in
+                        model ! []
 
         ReceiveChatMessage channelName chatMessage ->
             case model.chats |> Dict.get channelName of
@@ -371,7 +372,7 @@ chatInterfaceView model =
             , lobbyManagementView
             , div [ class [ Styles.ChatWindowContainer ] ]
                 [ rosterView model
-                  --, App.map ChatMsg <| Chat.view model.chat
+                , roomsView model
                 , chatsView model
                 ]
             ]
@@ -395,6 +396,35 @@ chatsView model =
 
                 Just chat ->
                     chatView ( currentChat, chat )
+
+
+roomsView : Model -> Html Msg
+roomsView model =
+    let
+        { class } =
+            Styles.mainNamespace
+    in
+        div [ class [ Styles.Roster ] ]
+            [ h3 [] [ text "Rooms" ]
+            , ul []
+                (List.map
+                    roomView
+                    knownRooms
+                )
+            ]
+
+
+roomView : String -> Html Msg
+roomView name =
+    let
+        { class } =
+            Styles.mainNamespace
+    in
+        li
+            [ class [ Styles.RosterUser ]
+            , onClick (JoinChannel name)
+            ]
+            [ text name ]
 
 
 rosterView : Model -> Html Msg
@@ -465,3 +495,9 @@ subscriptions model =
 init : ( Model, Cmd Msg )
 init =
     ( initialModel, Cmd.none )
+
+
+knownRooms : List String
+knownRooms =
+    [ "room:lobby"
+    ]
