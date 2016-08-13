@@ -19,6 +19,10 @@ import Types exposing (User, Message)
 import Material
 import Material.Scheme
 import Material.Layout as Layout
+import Material.List as List
+import Material.Options as Options exposing (when)
+import Material.Color as Color
+import Material.Icon as Icon
 
 
 type alias UserPresence =
@@ -388,7 +392,7 @@ chatInterfaceView model =
 
 chatView : ( String, Chat.Model ) -> Html Msg
 chatView ( channelName, chatModel ) =
-    div [] [ App.map (ChatMsg channelName) (Chat.view chatModel) ]
+    App.map (ChatMsg channelName) (Chat.view chatModel)
 
 
 chatsView : Model -> Html Msg
@@ -408,69 +412,71 @@ chatsView model =
 
 roomsView : Model -> Html Msg
 roomsView model =
-    let
-        { class } =
-            Styles.mainNamespace
-    in
-        div [ class [ Styles.Roster ] ]
-            [ h3 [] [ text "Rooms" ]
-            , ul []
-                (List.map
-                    (roomView model)
-                    knownRooms
-                )
-            ]
+    List.ul
+        []
+        (List.map
+            (roomView model)
+            knownRooms
+        )
 
 
 roomView : Model -> String -> Html Msg
 roomView model name =
     let
-        { classList } =
-            Styles.mainNamespace
-
         isListening =
             Dict.member name model.chats
+
+        iconName =
+            case isListening of
+                True ->
+                    "label"
+
+                False ->
+                    "label_outline"
     in
-        li
-            [ classList [ ( Styles.RosterUser, True ), ( Styles.Listening, isListening ) ]
-            , onClick (ShowChannel name)
+        List.li
+            [ Options.attribute <| onClick (ShowChannel name)
+            , Options.css "cursor" "pointer"
+            , Color.text Color.accent `when` (model.currentChat == Just name)
             ]
-            [ text name ]
+            [ List.content
+                []
+                [ List.icon iconName []
+                , text name
+                ]
+            ]
 
 
 rosterView : Model -> Html Msg
 rosterView model =
-    let
-        { class } =
-            Styles.mainNamespace
-    in
-        div [ class [ Styles.Roster ] ]
-            [ h3 [] [ text "Contacts" ]
-            , ul []
-                (List.map
-                    (userView model)
-                    model.users
-                )
-            ]
+    List.ul
+        []
+        (List.map
+            (userView model)
+            model.users
+        )
 
 
 userView : Model -> User -> Html Msg
 userView model user =
     let
-        { classList } =
-            Styles.mainNamespace
-
         chatChannel =
             twoWayChatChannelFor model.username user.name
 
         isListening =
             Dict.member chatChannel model.chats
     in
-        li
-            [ classList [ ( Styles.RosterUser, True ), ( Styles.Listening, isListening ) ]
-            , onClick (ChatWithUser user)
+        List.li
+            [ Options.attribute <| onClick (ChatWithUser user)
+            , Options.css "cursor" "pointer"
+            , Color.text Color.accent `when` (model.currentChat == Just chatChannel)
             ]
-            [ text user.name ]
+            [ List.content
+                []
+                [ List.avatarImage ("https://api.adorable.io/avatars/285/" ++ user.name ++ ".png") []
+                , text user.name
+                ]
+            ]
 
 
 setUsernameView : Html Msg
@@ -549,4 +555,6 @@ init =
 knownRooms : List String
 knownRooms =
     [ "room:lobby"
+    , "room:random"
+    , "room:gifs"
     ]

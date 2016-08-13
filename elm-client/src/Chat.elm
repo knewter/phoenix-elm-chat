@@ -7,6 +7,10 @@ import Json.Encode as JE
 import Json.Decode as JD exposing ((:=))
 import Styles
 import Types exposing (User, Message)
+import Material.Card as Card
+import Material.Options as Options
+import Material.Elevation as Elevation
+import Material.Color as Color
 
 
 type Msg
@@ -68,15 +72,21 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    let
-        { class } =
-            Styles.mainNamespace
-    in
-        div [ class [ Styles.Chat ] ]
-            [ h2 [] [ text model.topic ]
-            , messageListView model
+    Card.view
+        [ Options.css "width" "50%"
+        , Elevation.e2
+        ]
+        [ Card.title
+            [ Color.background Color.primary
+            , Color.text Color.white
+            ]
+            [ Card.head [] [ text model.topic ] ]
+        , Card.text
+            []
+            [ messageListView model
             , messageInputView model
             ]
+        ]
 
 
 messageListView : Model -> Html Msg
