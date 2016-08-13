@@ -629,12 +629,19 @@ main =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    case model.phxSocket of
-        Nothing ->
-            Sub.none
+    let
+        phxSub =
+            case model.phxSocket of
+                Nothing ->
+                    Sub.none
 
-        Just phxSocket ->
-            Phoenix.Socket.listen phxSocket PhoenixMsg
+                Just phxSocket ->
+                    Phoenix.Socket.listen phxSocket PhoenixMsg
+    in
+        Sub.batch
+            [ Material.subscriptions Mdl model
+            , phxSub
+            ]
 
 
 init : ( Model, Cmd Msg )
