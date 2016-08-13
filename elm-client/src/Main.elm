@@ -2,7 +2,7 @@ module Main exposing (..)
 
 import Html.App as App
 import Html exposing (..)
-import Html.Attributes exposing (value, placeholder, class, type')
+import Html.Attributes exposing (value, placeholder, class, type', style)
 import Html.Events exposing (onInput, onClick, onSubmit)
 import Phoenix.Socket
 import Phoenix.Channel
@@ -16,6 +16,9 @@ import Chat
 import OutMessage
 import Styles
 import Types exposing (User, Message)
+import Material
+import Material.Scheme
+import Material.Layout as Layout
 
 
 type alias UserPresence =
@@ -31,6 +34,7 @@ type alias Model =
     , phxPresences : PresenceState UserPresence
     , users : List User
     , currentChat : Maybe String
+    , mdl : Material.Model
     }
 
 
@@ -47,6 +51,7 @@ type Msg
     | ChatMsg String Chat.Msg
     | ChatWithUser User
     | ShowChat String
+    | Mdl (Material.Msg Msg)
 
 
 initialModel : Model
@@ -58,6 +63,7 @@ initialModel =
     , phxPresences = Dict.empty
     , users = []
     , currentChat = Nothing
+    , mdl = Material.model
     }
 
 
@@ -284,6 +290,9 @@ update msg model =
         ShowChat channel ->
             { model | currentChat = Just channel } ! []
 
+        Mdl msg' ->
+            Material.update msg' model
+
 
 controlChannelName : String -> String
 controlChannelName username =
@@ -360,11 +369,6 @@ userPresenceDecoder =
         ("device" := JD.string)
 
 
-lobbyManagementView : Html Msg
-lobbyManagementView =
-    button [ onClick (ShowChannel "room:lobby") ] [ text "Join lobby" ]
-
-
 chatInterfaceView : Model -> Html Msg
 chatInterfaceView model =
     let
@@ -376,11 +380,8 @@ chatInterfaceView model =
     in
         div [ class [ Styles.ChatClientContainer ] ]
             [ node "style" [ type' "text/css" ] [ text compiled.css ]
-            , lobbyManagementView
             , div [ class [ Styles.ChatWindowContainer ] ]
-                [ rosterView model
-                , roomsView model
-                , chatsView model
+                [ chatsView model
                 ]
             ]
 
@@ -480,6 +481,38 @@ setUsernameView =
 
 view : Model -> Html Msg
 view model =
+    Material.Scheme.top <|
+        Layout.render Mdl
+            model.mdl
+            [ Layout.fixedHeader
+            , Layout.fixedDrawer
+            ]
+            { header = [ h1 [ style [ ( "padding", "1rem" ) ] ] [ text "Phoenix Elm Chat" ] ]
+            , drawer = [ viewDrawer model ]
+            , tabs = ( [], [] )
+            , main =
+                [ div
+                    [ style [ ( "padding", "1rem" ) ] ]
+                    [ viewBody model ]
+                ]
+            }
+
+
+viewDrawer : Model -> Html Msg
+viewDrawer model =
+    case model.phxSocket of
+        Nothing ->
+            div [] []
+
+        Just _ ->
+            div []
+                [ rosterView model
+                , roomsView model
+                ]
+
+
+viewBody : Model -> Html Msg
+viewBody model =
     case model.phxSocket of
         Nothing ->
             setUsernameView
