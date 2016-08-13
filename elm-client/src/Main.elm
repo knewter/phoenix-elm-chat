@@ -32,9 +32,16 @@ type alias UserPresence =
     }
 
 
+type alias ChatWrapper =
+    { model : Chat.Model
+    , totalMessages : Int
+    , seenMessages : Int
+    }
+
+
 type alias Model =
     { username : String
-    , chats : Dict String Chat.Model
+    , chats : Dict String ChatWrapper
     , phxSocket : Maybe (Phoenix.Socket.Socket Msg)
     , phxPresences : PresenceState UserPresence
     , users : List User
@@ -85,10 +92,6 @@ initPhxSocket username =
         |> Phoenix.Socket.on "presence_diff" "room:lobby" HandlePresenceDiff
 
 
-
---|> Phoenix.Socket.on "chat:join" "room:lobby" HandleChatJoinCommand
-
-
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -96,8 +99,36 @@ update msg model =
             let
                 ( newModel, newCmd ) =
                     update (JoinChannel channelName) model
+
+                newModel' =
+                    case newModel.chats |> Dict.get channelName of
+                        Nothing ->
+                            newModel
+
+                        Just chatWrapper ->
+                            let
+                                totalMessages =
+                                    List.length chatWrapper.model.messages
+
+                                seenMessages =
+                                    totalMessages
+
+                                newChatWrapper =
+                                    { chatWrapper
+                                        | totalMessages = totalMessages
+                                        , seenMessages = seenMessages
+                                    }
+
+                                newChats =
+                                    Dict.insert channelName newChatWrapper newModel.chats
+                            in
+                                { newModel | chats = newChats }
             in
-                ( { newModel | currentChat = Just channelName }, newCmd )
+                ( { newModel'
+                    | currentChat = Just channelName
+                  }
+                , newCmd
+                )
 
         JoinChannel channelName ->
             case model.phxSocket of
@@ -127,9 +158,12 @@ update msg model =
                                 newChat =
                                     { initialChatModel | topic = channelName }
 
+                                newChatWrapper =
+                                    ChatWrapper newChat 0 0
+
                                 newChats =
                                     model.chats
-                                        |> Dict.insert channelName newChat
+                                        |> Dict.insert channelName newChatWrapper
                             in
                                 ( { model
                                     | phxSocket = Just phxSocket2
@@ -237,13 +271,31 @@ update msg model =
                 Nothing ->
                     model ! []
 
-                Just chatModel ->
+                Just chatWrapper ->
                     let
                         ( newChat, chatCmd, outMsg ) =
-                            Chat.update (Chat.ReceiveMessage chatMessage) chatModel
+                            Chat.update (Chat.ReceiveMessage chatMessage) chatWrapper.model
+
+                        totalMessages =
+                            List.length newChat.messages
+
+                        seenMessages =
+                            case model.currentChat == Just channelName of
+                                True ->
+                                    totalMessages
+
+                                False ->
+                                    chatWrapper.seenMessages
+
+                        newChatWrapper =
+                            { chatWrapper
+                                | model = newChat
+                                , totalMessages = totalMessages
+                                , seenMessages = seenMessages
+                            }
 
                         newChats =
-                            Dict.insert channelName newChat model.chats
+                            Dict.insert channelName newChatWrapper model.chats
 
                         newModel =
                             { model | chats = newChats }
@@ -261,13 +313,32 @@ update msg model =
                 Nothing ->
                     model ! []
 
-                Just chatModel ->
+                Just chatWrapper ->
                     let
                         ( newChat, chatCmd, outMsg ) =
-                            Chat.update chatMsg chatModel
+                            Chat.update chatMsg chatWrapper.model
+
+                        -- Obviously we should pull this out into a function
+                        totalMessages =
+                            List.length newChat.messages
+
+                        seenMessages =
+                            case model.currentChat == Just channelName of
+                                True ->
+                                    totalMessages
+
+                                False ->
+                                    chatWrapper.seenMessages
+
+                        newChatWrapper =
+                            { chatWrapper
+                                | model = newChat
+                                , totalMessages = totalMessages
+                                , seenMessages = seenMessages
+                            }
 
                         newChats =
-                            Dict.insert channelName newChat model.chats
+                            Dict.insert channelName newChatWrapper model.chats
 
                         newModel =
                             { model | chats = newChats }
@@ -374,23 +445,6 @@ userPresenceDecoder =
         ("device" := JD.string)
 
 
-chatInterfaceView : Model -> Html Msg
-chatInterfaceView model =
-    let
-        compiled =
-            Styles.compile Styles.css
-
-        { class } =
-            Styles.mainNamespace
-    in
-        div [ class [ Styles.ChatClientContainer ] ]
-            [ node "style" [ type' "text/css" ] [ text compiled.css ]
-            , div [ class [ Styles.ChatWindowContainer ] ]
-                [ chatsView model
-                ]
-            ]
-
-
 chatView : ( String, Chat.Model ) -> Html Msg
 chatView ( channelName, chatModel ) =
     App.map (ChatMsg channelName) (Chat.view chatModel)
@@ -407,8 +461,8 @@ chatsView model =
                 Nothing ->
                     div [] []
 
-                Just chat ->
-                    chatView ( currentChat, chat )
+                Just chatWrapper ->
+                    chatView ( currentChat, chatWrapper.model )
 
 
 roomsView : Model -> Html Msg
@@ -438,9 +492,19 @@ roomView model name =
         channelName =
             case isListening of
                 True ->
-                    Options.span
-                        [ Badge.add "3" ]
-                        [ text name ]
+                    case Dict.get name model.chats of
+                        Just chatWrapper ->
+                            case chatWrapper.totalMessages - chatWrapper.seenMessages of
+                                0 ->
+                                    text name
+
+                                n ->
+                                    Options.span
+                                        [ Badge.add <| toString n ]
+                                        [ text name ]
+
+                        Nothing ->
+                            text name
 
                 False ->
                     text name
@@ -550,7 +614,7 @@ viewBody model =
             setUsernameView
 
         _ ->
-            chatInterfaceView model
+            chatsView model
 
 
 main : Program Never
