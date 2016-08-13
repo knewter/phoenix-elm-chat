@@ -23,6 +23,7 @@ import Material.List as List
 import Material.Options as Options exposing (when)
 import Material.Color as Color
 import Material.Icon as Icon
+import Material.Badge as Badge
 
 
 type alias UserPresence =
@@ -433,6 +434,16 @@ roomView model name =
 
                 False ->
                     "label_outline"
+
+        channelName =
+            case isListening of
+                True ->
+                    Options.span
+                        [ Badge.add "3" ]
+                        [ text name ]
+
+                False ->
+                    text name
     in
         List.li
             [ Options.attribute <| onClick (ShowChannel name)
@@ -442,7 +453,7 @@ roomView model name =
             [ List.content
                 []
                 [ List.icon iconName []
-                , text name
+                , channelName
                 ]
             ]
 
