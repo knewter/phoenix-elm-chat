@@ -7,16 +7,20 @@ import Json.Encode as JE
 import Json.Decode as JD exposing ((:=))
 import Styles
 import Types exposing (User, Message)
+import Material
 import Material.Card as Card
 import Material.Options as Options
 import Material.Elevation as Elevation
 import Material.Color as Color
+import Material.Textfield as Textfield
+import Material.List as List
 
 
 type Msg
     = SetNewMessage String
     | ReceiveMessage JE.Value
     | SendMessage
+    | Mdl (Material.Msg Msg)
 
 
 type OutMsg
@@ -28,6 +32,7 @@ type alias Model =
     , topic : String
     , messages : List Message
     , users : List User
+    , mdl : Material.Model
     }
 
 
@@ -37,6 +42,7 @@ initialModel =
     , topic = ""
     , messages = []
     , users = []
+    , mdl = Material.model
     }
 
 
@@ -69,6 +75,16 @@ update msg model =
                     , Nothing
                     )
 
+        Mdl msg' ->
+            let
+                ( newModel, newCmd ) =
+                    Material.update msg' model
+            in
+                ( newModel
+                , newCmd
+                , Nothing
+                )
+
 
 view : Model -> Html Msg
 view model =
@@ -91,31 +107,40 @@ view model =
 
 messageListView : Model -> Html Msg
 messageListView model =
-    let
-        { class } =
-            Styles.mainNamespace
-    in
-        div [ class [ Styles.Messages ] ]
-            (List.map viewMessage model.messages)
+    List.ul
+        []
+        (List.map viewMessage model.messages)
+
+
+viewMessage : Message -> Html Msg
+viewMessage message =
+    List.li
+        [ List.withBody ]
+        [ List.content
+            []
+            [ List.avatarImage ("https://api.adorable.io/avatars/285/" ++ message.user ++ ".png") []
+            , text message.user
+            , List.body
+                []
+                [ text message.body
+                ]
+            ]
+        ]
 
 
 messageInputView : Model -> Html Msg
 messageInputView model =
-    let
-        { class } =
-            Styles.mainNamespace
-    in
-        form
-            [ onSubmit SendMessage
+    form
+        [ onSubmit SendMessage
+        ]
+        [ Textfield.render Mdl
+            [ 0 ]
+            model.mdl
+            [ Textfield.onInput SetNewMessage
+            , Textfield.value model.newMessage
+            , Textfield.label "Type a message..."
             ]
-            [ input
-                [ placeholder "Message..."
-                , class [ Styles.ChatInput ]
-                , onInput SetNewMessage
-                , value model.newMessage
-                ]
-                []
-            ]
+        ]
 
 
 userView : User -> Html Msg
@@ -123,18 +148,6 @@ userView user =
     li []
         [ text user.name
         ]
-
-
-viewMessage : Message -> Html Msg
-viewMessage message =
-    let
-        { class } =
-            Styles.mainNamespace
-    in
-        div [ class [ Styles.Message ] ]
-            [ span [ class [ Styles.MessageUser ] ] [ text (message.user ++ ": ") ]
-            , span [ class [ Styles.MessageBody ] ] [ text message.body ]
-            ]
 
 
 chatMessageDecoder : JD.Decoder Message

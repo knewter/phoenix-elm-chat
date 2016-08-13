@@ -493,7 +493,7 @@ view model =
             [ Layout.fixedHeader
             , Layout.fixedDrawer
             ]
-            { header = [ h1 [ style [ ( "padding", "1rem" ) ] ] [ text "Phoenix Elm Chat" ] ]
+            { header = [ viewHeader model ]
             , drawer = [ viewDrawer model ]
             , tabs = ( [], [] )
             , main =
@@ -502,6 +502,21 @@ view model =
                     [ viewBody model ]
                 ]
             }
+
+
+viewHeader : Model -> Html Msg
+viewHeader model =
+    -- h1 [ style [ ( "padding", "1rem" ) ] ] [ text "Phoenix Elm Chat" ] ]
+    Layout.row
+        []
+        [ Layout.title [] [ text "Phoenix Elm Chat" ]
+        , Layout.spacer
+        , Layout.navigation []
+            [ Layout.link
+                [ Layout.href "https://github.com/knewter/phoenix-elm-chat" ]
+                [ span [] [ text "github" ] ]
+            ]
+        ]
 
 
 viewDrawer : Model -> Html Msg
