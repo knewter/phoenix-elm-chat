@@ -1,0 +1,24 @@
+module Msg exposing (Msg(..))
+
+import Material
+import Phoenix.Socket
+import Json.Encode as JE
+import Json.Decode as JD
+import Chat
+import Types exposing (User, Message)
+
+
+type Msg
+    = JoinChannel String
+    | ShowChannel String
+    | PhoenixMsg (Phoenix.Socket.Msg Msg)
+    | SetUsername String
+    | ConnectSocket
+    | HandlePresenceState JE.Value
+    | HandlePresenceDiff JE.Value
+    | HandleChatJoinCommand JE.Value
+    | ReceiveChatMessage String JE.Value
+    | ChatMsg String Chat.Msg
+    | ChatWithUser User
+    | ShowChat String
+    | Mdl (Material.Msg Msg)

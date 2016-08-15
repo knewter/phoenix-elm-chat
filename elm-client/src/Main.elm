@@ -1,9 +1,10 @@
 module Main exposing (..)
 
+import View
+import Model exposing (Model, UserPresence, ChatWrapper)
+import Msg exposing (Msg(..))
+import Utils exposing (twoWayChatChannelFor)
 import Html.App as App
-import Html exposing (..)
-import Html.Attributes exposing (value, placeholder, class, type', style)
-import Html.Events exposing (onInput, onClick, onSubmit)
 import Phoenix.Socket
 import Phoenix.Channel
 import Phoenix.Push
@@ -17,53 +18,6 @@ import OutMessage
 import Styles
 import Types exposing (User, Message)
 import Material
-import Material.Scheme
-import Material.Layout as Layout
-import Material.List as List
-import Material.Options as Options exposing (when)
-import Material.Color as Color
-import Material.Icon as Icon
-import Material.Badge as Badge
-
-
-type alias UserPresence =
-    { online_at : String
-    , device : String
-    }
-
-
-type alias ChatWrapper =
-    { model : Chat.Model
-    , totalMessages : Int
-    , seenMessages : Int
-    }
-
-
-type alias Model =
-    { username : String
-    , chats : Dict String ChatWrapper
-    , phxSocket : Maybe (Phoenix.Socket.Socket Msg)
-    , phxPresences : PresenceState UserPresence
-    , users : List User
-    , currentChat : Maybe String
-    , mdl : Material.Model
-    }
-
-
-type Msg
-    = JoinChannel String
-    | ShowChannel String
-    | PhoenixMsg (Phoenix.Socket.Msg Msg)
-    | SetUsername String
-    | ConnectSocket
-    | HandlePresenceState JE.Value
-    | HandlePresenceDiff JE.Value
-    | HandleChatJoinCommand JE.Value
-    | ReceiveChatMessage String JE.Value
-    | ChatMsg String Chat.Msg
-    | ChatWithUser User
-    | ShowChat String
-    | Mdl (Material.Msg Msg)
 
 
 initialModel : Model
@@ -384,25 +338,6 @@ chatJoinDecoder =
         ("channel" := JD.string)
 
 
-
-{-
-   To determine the 2-way chat channel for these two users, sort them alphabetically, and insert a "<->" between them, prepending with "room:".
-   For example:
-       > twoWayChatChannelFor "alice" "bob" == twoWayChatChannelFor "bob" "alice"
-       > twoWayChatChannelFor "alice" "bob" == "room:alice<->bob"
--}
-
-
-twoWayChatChannelFor : String -> String -> String
-twoWayChatChannelFor user1 user2 =
-    case user1 < user2 of
-        True ->
-            "room:" ++ user1 ++ "<->" ++ user2
-
-        False ->
-            "room:" ++ user2 ++ "<->" ++ user1
-
-
 handleChatOutMsg : String -> Maybe Chat.OutMsg -> ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
 handleChatOutMsg channelName maybeOutMsg ( model, cmd ) =
     case maybeOutMsg of
@@ -445,184 +380,12 @@ userPresenceDecoder =
         ("device" := JD.string)
 
 
-chatView : ( String, Chat.Model ) -> Html Msg
-chatView ( channelName, chatModel ) =
-    App.map (ChatMsg channelName) (Chat.view chatModel)
-
-
-chatsView : Model -> Html Msg
-chatsView model =
-    case model.currentChat of
-        Nothing ->
-            div [] []
-
-        Just currentChat ->
-            case Dict.get currentChat model.chats of
-                Nothing ->
-                    div [] []
-
-                Just chatWrapper ->
-                    chatView ( currentChat, chatWrapper.model )
-
-
-roomsView : Model -> Html Msg
-roomsView model =
-    List.ul
-        []
-        (List.map
-            (roomView model)
-            knownRooms
-        )
-
-
-roomView : Model -> String -> Html Msg
-roomView model name =
-    let
-        isListening =
-            Dict.member name model.chats
-
-        iconName =
-            case isListening of
-                True ->
-                    "label"
-
-                False ->
-                    "label_outline"
-
-        channelName =
-            case isListening of
-                True ->
-                    case Dict.get name model.chats of
-                        Just chatWrapper ->
-                            case chatWrapper.totalMessages - chatWrapper.seenMessages of
-                                0 ->
-                                    text name
-
-                                n ->
-                                    Options.span
-                                        [ Badge.add <| toString n ]
-                                        [ text name ]
-
-                        Nothing ->
-                            text name
-
-                False ->
-                    text name
-    in
-        List.li
-            [ Options.attribute <| onClick (ShowChannel name)
-            , Options.css "cursor" "pointer"
-            , Color.text Color.accent `when` (model.currentChat == Just name)
-            ]
-            [ List.content
-                []
-                [ List.icon iconName []
-                , channelName
-                ]
-            ]
-
-
-rosterView : Model -> Html Msg
-rosterView model =
-    List.ul
-        []
-        (List.map
-            (userView model)
-            model.users
-        )
-
-
-userView : Model -> User -> Html Msg
-userView model user =
-    let
-        chatChannel =
-            twoWayChatChannelFor model.username user.name
-
-        isListening =
-            Dict.member chatChannel model.chats
-    in
-        List.li
-            [ Options.attribute <| onClick (ChatWithUser user)
-            , Options.css "cursor" "pointer"
-            , Color.text Color.accent `when` (model.currentChat == Just chatChannel)
-            ]
-            [ List.content
-                []
-                [ List.avatarImage ("https://api.adorable.io/avatars/285/" ++ user.name ++ ".png") []
-                , text user.name
-                ]
-            ]
-
-
-setUsernameView : Html Msg
-setUsernameView =
-    form [ onSubmit ConnectSocket ]
-        [ input [ onInput SetUsername, placeholder "Enter a username" ] [] ]
-
-
-view : Model -> Html Msg
-view model =
-    Material.Scheme.top <|
-        Layout.render Mdl
-            model.mdl
-            [ Layout.fixedHeader
-            , Layout.fixedDrawer
-            ]
-            { header = [ viewHeader model ]
-            , drawer = [ viewDrawer model ]
-            , tabs = ( [], [] )
-            , main =
-                [ div
-                    [ style [ ( "padding", "1rem" ) ] ]
-                    [ viewBody model ]
-                ]
-            }
-
-
-viewHeader : Model -> Html Msg
-viewHeader model =
-    -- h1 [ style [ ( "padding", "1rem" ) ] ] [ text "Phoenix Elm Chat" ] ]
-    Layout.row
-        []
-        [ Layout.title [] [ text "Phoenix Elm Chat" ]
-        , Layout.spacer
-        , Layout.navigation []
-            [ Layout.link
-                [ Layout.href "https://github.com/knewter/phoenix-elm-chat" ]
-                [ span [] [ text "github" ] ]
-            ]
-        ]
-
-
-viewDrawer : Model -> Html Msg
-viewDrawer model =
-    case model.phxSocket of
-        Nothing ->
-            div [] []
-
-        Just _ ->
-            div []
-                [ rosterView model
-                , roomsView model
-                ]
-
-
-viewBody : Model -> Html Msg
-viewBody model =
-    case model.phxSocket of
-        Nothing ->
-            setUsernameView
-
-        _ ->
-            chatsView model
-
-
 main : Program Never
 main =
     App.program
         { init = init
         , update = update
-        , view = view
+        , view = View.view
         , subscriptions = subscriptions
         }
 
@@ -647,11 +410,3 @@ subscriptions model =
 init : ( Model, Cmd Msg )
 init =
     ( initialModel, Cmd.none )
-
-
-knownRooms : List String
-knownRooms =
-    [ "room:lobby"
-    , "room:random"
-    , "room:gifs"
-    ]
