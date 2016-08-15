@@ -2,11 +2,12 @@ module Model exposing (..)
 
 import Phoenix.Socket
 import Chat
-import Material
 import Phoenix.Presence exposing (PresenceState)
 import Types exposing (User, Message)
-import Msg exposing (Msg)
 import Dict exposing (Dict)
+import Msg exposing (Msg)
+import Material
+import Material.Snackbar as Snackbar
 
 
 type alias UserPresence =
@@ -30,4 +31,19 @@ type alias Model =
     , users : List User
     , currentChat : Maybe String
     , mdl : Material.Model
+    , snackbar : Snackbar.Model (Maybe Msg)
+    }
+
+
+initialModel : Model
+initialModel =
+    { username = ""
+    , chats =
+        Dict.empty
+    , phxSocket = Nothing
+    , phxPresences = Dict.empty
+    , users = []
+    , currentChat = Nothing
+    , mdl = Material.model
+    , snackbar = Snackbar.model
     }

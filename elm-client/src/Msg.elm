@@ -1,11 +1,12 @@
 module Msg exposing (Msg(..))
 
-import Material
 import Phoenix.Socket
 import Json.Encode as JE
 import Json.Decode as JD
 import Chat
 import Types exposing (User, Message)
+import Material
+import Material.Snackbar as Snackbar
 
 
 type Msg
@@ -22,3 +23,5 @@ type Msg
     | ChatWithUser User
     | ShowChat String
     | Mdl (Material.Msg Msg)
+    | Snackbar (Snackbar.Msg (Maybe Msg))
+    | NoOp

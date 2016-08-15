@@ -18,19 +18,12 @@ import OutMessage
 import Styles
 import Types exposing (User, Message)
 import Material
+import Material.Snackbar as Snackbar
 
 
-initialModel : Model
-initialModel =
-    { username = ""
-    , chats =
-        Dict.empty
-    , phxSocket = Nothing
-    , phxPresences = Dict.empty
-    , users = []
-    , currentChat = Nothing
-    , mdl = Material.model
-    }
+init : ( Model, Cmd Msg )
+init =
+    ( Model.initialModel, Material.init Mdl )
 
 
 socketServer : String -> String
@@ -211,7 +204,19 @@ update msg model =
         HandleChatJoinCommand raw ->
             case JD.decodeValue chatJoinDecoder raw of
                 Ok channelToJoin ->
-                    update (JoinChannel channelToJoin) model
+                    let
+                        ( model, cmd ) =
+                            update (JoinChannel channelToJoin) model
+
+                        ( snackbar, snackCmd ) =
+                            Snackbar.add (Snackbar.snackbar (Just (ShowChannel channelToJoin)) ("You were joined to " ++ channelToJoin) "Show Channel") model.snackbar
+                    in
+                        ( { model | snackbar = snackbar }
+                        , Cmd.batch
+                            [ cmd
+                            , Cmd.map Snackbar snackCmd
+                            ]
+                        )
 
                 Err error ->
                     let
@@ -323,6 +328,19 @@ update msg model =
         Mdl msg' ->
             Material.update msg' model
 
+        Snackbar (Snackbar.Click (Just msg)) ->
+            update msg model
+
+        Snackbar msg' ->
+            let
+                ( snackbar, snackCmd ) =
+                    Snackbar.update msg' model.snackbar
+            in
+                { model | snackbar = snackbar } ! [ Cmd.map Snackbar snackCmd ]
+
+        NoOp ->
+            model ! []
+
 
 controlChannelName : String -> String
 controlChannelName username =
@@ -362,13 +380,18 @@ handleChatOutMsg channelName maybeOutMsg ( model, cmd ) =
 
                                 ( phxSocket, phxCmd ) =
                                     Phoenix.Socket.push push' modelPhxSocket
+
+                                ( snackbar', snackCmd ) =
+                                    Snackbar.add (Snackbar.toast Nothing "You sent a message") model.snackbar
                             in
                                 ( { model
                                     | phxSocket = Just phxSocket
+                                    , snackbar = snackbar'
                                   }
                                 , Cmd.batch
                                     [ cmd
                                     , Cmd.map PhoenixMsg phxCmd
+                                    , Cmd.map Snackbar snackCmd
                                     ]
                                 )
 
@@ -405,8 +428,3 @@ subscriptions model =
             [ Material.subscriptions Mdl model
             , phxSub
             ]
-
-
-init : ( Model, Cmd Msg )
-init =
-    ( initialModel, Material.init Mdl )

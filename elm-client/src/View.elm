@@ -10,6 +10,7 @@ import Dict exposing (Dict)
 import Html exposing (..)
 import Html.Attributes exposing (value, placeholder, class, type', style)
 import Html.Events exposing (onInput, onClick, onSubmit)
+import Markdown
 import Material.Scheme
 import Material.Layout as Layout
 import Material.List as List
@@ -19,7 +20,7 @@ import Material.Icon as Icon
 import Material.Badge as Badge
 import Material.Grid exposing (grid, size, cell, Device(..))
 import Material.Table as Table
-import Markdown
+import Material.Snackbar as Snackbar
 
 
 chatView : ( String, Chat.Model ) -> Html Msg
@@ -151,7 +152,9 @@ view model =
             , main =
                 [ div
                     [ style [ ( "padding", "1rem" ) ] ]
-                    [ viewBody model ]
+                    [ viewBody model
+                    , Snackbar.view model.snackbar |> App.map Snackbar
+                    ]
                 ]
             }
 
