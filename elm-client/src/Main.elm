@@ -338,8 +338,8 @@ update msg model =
             in
                 { model | snackbar = snackbar } ! [ Cmd.map Snackbar snackCmd ]
 
-        NoOp ->
-            model ! []
+        SelectTab num ->
+            { model | selectedTab = num } ! []
 
 
 controlChannelName : String -> String

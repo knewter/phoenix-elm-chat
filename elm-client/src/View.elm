@@ -21,6 +21,7 @@ import Material.Badge as Badge
 import Material.Grid exposing (grid, size, cell, Device(..))
 import Material.Table as Table
 import Material.Snackbar as Snackbar
+import Material.Tabs as Tabs
 
 
 chatView : ( String, Chat.Model ) -> Html Msg
@@ -181,9 +182,29 @@ viewDrawer model =
             div [] []
 
         Just _ ->
-            div []
-                [ rosterView model
-                , roomsView model
+            Tabs.render Mdl
+                [ 0 ]
+                model.mdl
+                [ Tabs.ripple
+                , Tabs.onSelectTab SelectTab
+                , Tabs.activeTab model.selectedTab
+                ]
+                [ Tabs.label
+                    [ Options.center ]
+                    [ text "Chats" ]
+                , Tabs.label
+                    [ Options.center ]
+                    [ text "People" ]
+                ]
+                [ case model.selectedTab of
+                    0 ->
+                        roomsView model
+
+                    1 ->
+                        rosterView model
+
+                    _ ->
+                        text "404"
                 ]
 
 

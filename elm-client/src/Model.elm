@@ -32,6 +32,7 @@ type alias Model =
     , currentChat : Maybe String
     , mdl : Material.Model
     , snackbar : Snackbar.Model (Maybe Msg)
+    , selectedTab : Int
     }
 
 
@@ -46,4 +47,5 @@ initialModel =
     , currentChat = Nothing
     , mdl = Material.model
     , snackbar = Snackbar.model
+    , selectedTab = 0
     }
