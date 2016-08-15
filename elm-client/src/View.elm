@@ -18,16 +18,13 @@ import Material.Color as Color
 import Material.Icon as Icon
 import Material.Badge as Badge
 import Material.Grid exposing (grid, size, cell, Device(..))
+import Material.Table as Table
+import Markdown
 
 
 chatView : ( String, Chat.Model ) -> Html Msg
 chatView ( channelName, chatModel ) =
-    grid []
-        [ cell [ size All 8 ]
-            [ App.map (ChatMsg channelName) (Chat.view chatModel) ]
-        , cell [ size All 4 ]
-            [ text "Sidebar here..." ]
-        ]
+    App.map (ChatMsg channelName) (Chat.view chatModel)
 
 
 chatsView : Model -> Html Msg
@@ -194,7 +191,46 @@ viewBody model =
             setUsernameView
 
         _ ->
-            chatsView model
+            grid []
+                [ cell [ size All 6, size Tablet 8 ]
+                    [ chatsView model
+                    ]
+                , cell [ size All 6, size Tablet 8 ]
+                    [ viewSidebar model ]
+                ]
+
+
+viewSidebar : Model -> Html Msg
+viewSidebar model =
+    let
+        examples =
+            [ ( "**bold**", "Bold some text", "This is **bold**" )
+            , ( "*emphasize*", "Emphasize some text", "This is *emphasized*" )
+            , ( "[link text](url)", "Make a link", "Here's a [link](http://dailydrip.com)." )
+            , ( "![alt text](image)", "Make an image", "![megaman](http://mugenarchive.com/forums/34f814e2d7eeb9a2d05cba1245ab0bf6/images/megaman_engine_ver_0_3_by_icepony64_thumb.gif)" )
+            ]
+    in
+        Table.table
+            [ Options.css "width" "100%" ]
+            [ Table.thead []
+                [ Table.tr []
+                    [ Table.th [] [ text "Syntax" ]
+                    , Table.th [] [ text "Description" ]
+                    , Table.th [] [ text "Example" ]
+                    ]
+                ]
+            , Table.tbody []
+                (List.map
+                    (\( syntax, description, example ) ->
+                        Table.tr []
+                            [ Table.td [] [ text syntax ]
+                            , Table.td [] [ text description ]
+                            , Table.td [] [ Markdown.toHtml [] example ]
+                            ]
+                    )
+                    examples
+                )
+            ]
 
 
 knownRooms : List String

@@ -409,4 +409,4 @@ subscriptions model =
 
 init : ( Model, Cmd Msg )
 init =
-    ( initialModel, Cmd.none )
+    ( initialModel, Material.init Mdl )

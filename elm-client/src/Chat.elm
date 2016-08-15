@@ -14,6 +14,7 @@ import Material.Elevation as Elevation
 import Material.Color as Color
 import Material.Textfield as Textfield
 import Material.List as List
+import Markdown
 
 
 type Msg
@@ -122,7 +123,7 @@ viewMessage message =
             , text message.user
             , List.body
                 []
-                [ text message.body
+                [ Markdown.toHtml [] message.body
                 ]
             ]
         ]
