@@ -22,6 +22,8 @@ import Material.Grid exposing (grid, size, cell, Device(..))
 import Material.Table as Table
 import Material.Snackbar as Snackbar
 import Material.Tabs as Tabs
+import Material.Dialog as Dialog
+import Material.Button as Button
 
 
 chatView : ( String, Chat.Model ) -> Html Msg
@@ -162,7 +164,6 @@ view model =
 
 viewHeader : Model -> Html Msg
 viewHeader model =
-    -- h1 [ style [ ( "padding", "1rem" ) ] ] [ text "Phoenix Elm Chat" ] ]
     Layout.row
         []
         [ Layout.title [] [ text "Phoenix Elm Chat" ]
@@ -182,29 +183,49 @@ viewDrawer model =
             div [] []
 
         Just _ ->
-            Tabs.render Mdl
-                [ 0 ]
-                model.mdl
-                [ Tabs.ripple
-                , Tabs.onSelectTab SelectTab
-                , Tabs.activeTab model.selectedTab
-                ]
-                [ Tabs.label
-                    [ Options.center ]
-                    [ text "Chats" ]
-                , Tabs.label
-                    [ Options.center ]
-                    [ text "People" ]
-                ]
-                [ case model.selectedTab of
-                    0 ->
-                        roomsView model
+            div []
+                [ Tabs.render Mdl
+                    [ 0 ]
+                    model.mdl
+                    [ Tabs.ripple
+                    , Tabs.onSelectTab SelectTab
+                    , Tabs.activeTab model.selectedTab
+                    ]
+                    [ Tabs.label
+                        [ Options.center ]
+                        [ text "Chats" ]
+                    , Tabs.label
+                        [ Options.center ]
+                        [ text "People" ]
+                    ]
+                    [ case model.selectedTab of
+                        0 ->
+                            roomsView model
 
-                    1 ->
-                        rosterView model
+                        1 ->
+                            rosterView model
 
-                    _ ->
-                        text "404"
+                        _ ->
+                            text "404"
+                    ]
+                , Button.render Mdl
+                    [ 1 ]
+                    model.mdl
+                    [ Dialog.openOn "click" ]
+                    [ text "About" ]
+                , Dialog.view []
+                    [ Dialog.title [] [ text "About" ]
+                    , Dialog.content []
+                        [ p [] [ text "A rather full-featured demo application from DailyDrip" ]
+                        ]
+                    , Dialog.actions []
+                        [ Button.render Mdl
+                            [ 2 ]
+                            model.mdl
+                            [ Dialog.closeOn "click" ]
+                            [ text "Close" ]
+                        ]
+                    ]
                 ]
 
 
