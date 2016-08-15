@@ -17,11 +17,17 @@ import Material.Options as Options exposing (when)
 import Material.Color as Color
 import Material.Icon as Icon
 import Material.Badge as Badge
+import Material.Grid exposing (grid, size, cell, Device(..))
 
 
 chatView : ( String, Chat.Model ) -> Html Msg
 chatView ( channelName, chatModel ) =
-    App.map (ChatMsg channelName) (Chat.view chatModel)
+    grid []
+        [ cell [ size All 8 ]
+            [ App.map (ChatMsg channelName) (Chat.view chatModel) ]
+        , cell [ size All 4 ]
+            [ text "Sidebar here..." ]
+        ]
 
 
 chatsView : Model -> Html Msg

@@ -89,7 +89,7 @@ update msg model =
 view : Model -> Html Msg
 view model =
     Card.view
-        [ Options.css "width" "50%"
+        [ Options.css "width" "100%"
         , Elevation.e2
         ]
         [ Card.title
