@@ -21,6 +21,9 @@ import Material.Badge as Badge
 import Material.Grid exposing (grid, size, cell, Device(..))
 import Material.Table as Table
 import Material.Snackbar as Snackbar
+import Material.Tabs as Tabs
+import Material.Dialog as Dialog
+import Material.Button as Button
 
 
 chatView : ( String, Chat.Model ) -> Html Msg
@@ -45,10 +48,8 @@ chatsView model =
 
 roomsView : Model -> Html Msg
 roomsView model =
-    List.ul
-        []
-        (List.map
-            (roomView model)
+    List.ul []
+        (List.map (roomView model)
             knownRooms
         )
 
@@ -77,8 +78,7 @@ roomView model name =
                                     text name
 
                                 n ->
-                                    Options.span
-                                        [ Badge.add <| toString n ]
+                                    Options.span [ Badge.add <| toString n ]
                                         [ text name ]
 
                         Nothing ->
@@ -92,8 +92,7 @@ roomView model name =
             , Options.css "cursor" "pointer"
             , Color.text Color.accent `when` (model.currentChat == Just name)
             ]
-            [ List.content
-                []
+            [ List.content []
                 [ List.icon iconName []
                 , channelName
                 ]
@@ -102,10 +101,8 @@ roomView model name =
 
 rosterView : Model -> Html Msg
 rosterView model =
-    List.ul
-        []
-        (List.map
-            (userView model)
+    List.ul []
+        (List.map (userView model)
             model.users
         )
 
@@ -124,8 +121,7 @@ userView model user =
             , Options.css "cursor" "pointer"
             , Color.text Color.accent `when` (model.currentChat == Just chatChannel)
             ]
-            [ List.content
-                []
+            [ List.content []
                 [ List.avatarImage ("https://api.adorable.io/avatars/285/" ++ user.name ++ ".png") []
                 , text user.name
                 ]
@@ -140,35 +136,47 @@ setUsernameView =
 
 view : Model -> Html Msg
 view model =
-    Material.Scheme.top <|
-        Layout.render Mdl
-            model.mdl
-            [ Layout.fixedHeader
-            , Layout.fixedDrawer
-            ]
-            { header = [ viewHeader model ]
-            , drawer = [ viewDrawer model ]
-            , tabs = ( [], [] )
-            , main =
-                [ div
-                    [ style [ ( "padding", "1rem" ) ] ]
-                    [ viewBody model
-                    , Snackbar.view model.snackbar |> App.map Snackbar
+    Material.Scheme.top
+        <| div []
+            [ Layout.render Mdl
+                model.mdl
+                [ Layout.fixedHeader
+                , Layout.fixedDrawer
+                ]
+                { header = [ viewHeader model ]
+                , drawer = [ viewDrawer model ]
+                , tabs = ( [], [] )
+                , main =
+                    [ div [ style [ ( "padding", "1rem" ) ] ]
+                        [ viewBody model
+                        , Snackbar.view model.snackbar |> App.map Snackbar
+                        ]
+                    ]
+                }
+            , Dialog.view []
+                [ Dialog.title [] [ text "About" ]
+                , Dialog.content []
+                    [ p [] [ text "A rather full-featured demo application from DailyDrip" ]
+                    ]
+                , Dialog.actions []
+                    [ Button.render Mdl
+                        [ 2 ]
+                        model.mdl
+                        [ Dialog.closeOn "click" ]
+                        [ text "Close" ]
                     ]
                 ]
-            }
+            ]
 
 
 viewHeader : Model -> Html Msg
 viewHeader model =
     -- h1 [ style [ ( "padding", "1rem" ) ] ] [ text "Phoenix Elm Chat" ] ]
-    Layout.row
-        []
+    Layout.row []
         [ Layout.title [] [ text "Phoenix Elm Chat" ]
         , Layout.spacer
         , Layout.navigation []
-            [ Layout.link
-                [ Layout.href "https://github.com/knewter/phoenix-elm-chat" ]
+            [ Layout.link [ Layout.href "https://github.com/knewter/phoenix-elm-chat" ]
                 [ span [] [ text "github" ] ]
             ]
         ]
@@ -182,8 +190,33 @@ viewDrawer model =
 
         Just _ ->
             div []
-                [ rosterView model
-                , roomsView model
+                [ Tabs.render Mdl
+                    [ 0 ]
+                    model.mdl
+                    [ Tabs.ripple
+                    , Tabs.activeTab model.selectedTab
+                    , Tabs.onSelectTab SelectTab
+                    ]
+                    [ Tabs.label [ Options.center ]
+                        [ text "Chats" ]
+                    , Tabs.label [ Options.center ]
+                        [ text "People" ]
+                    ]
+                    [ case model.selectedTab of
+                        0 ->
+                            roomsView model
+
+                        1 ->
+                            rosterView model
+
+                        _ ->
+                            text "404"
+                    ]
+                , Button.render Mdl
+                    [ 1 ]
+                    model.mdl
+                    [ Dialog.openOn "click" ]
+                    [ text "About" ]
                 ]
 
 
@@ -213,8 +246,7 @@ viewSidebar model =
             , ( "![alt text](image)", "Make an image", "![megaman](http://mugenarchive.com/forums/34f814e2d7eeb9a2d05cba1245ab0bf6/images/megaman_engine_ver_0_3_by_icepony64_thumb.gif)" )
             ]
     in
-        Table.table
-            [ Options.css "width" "100%" ]
+        Table.table [ Options.css "width" "100%" ]
             [ Table.thead []
                 [ Table.tr []
                     [ Table.th [] [ text "Syntax" ]

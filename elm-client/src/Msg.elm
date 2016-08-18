@@ -24,4 +24,5 @@ type Msg
     | ShowChat String
     | Mdl (Material.Msg Msg)
     | Snackbar (Snackbar.Msg (Maybe Msg))
+    | SelectTab Int
     | NoOp
