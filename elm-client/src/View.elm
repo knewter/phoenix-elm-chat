@@ -26,6 +26,27 @@ import Material.Dialog as Dialog
 import Material.Button as Button
 
 
+view : Model -> Html Msg
+view model =
+    Material.Scheme.top <|
+        Layout.render Mdl
+            model.mdl
+            [ Layout.fixedHeader
+            , Layout.fixedDrawer
+            ]
+            { header = [ viewHeader model ]
+            , drawer = [ viewDrawer model ]
+            , tabs = ( [], [] )
+            , main =
+                [ div
+                    [ style [ ( "padding", "1rem" ) ] ]
+                    [ viewBody model
+                    , Snackbar.view model.snackbar |> App.map Snackbar
+                    ]
+                ]
+            }
+
+
 chatView : ( String, Chat.Model ) -> Html Msg
 chatView ( channelName, chatModel ) =
     App.map (ChatMsg channelName) (Chat.view chatModel)
@@ -139,27 +160,6 @@ setUsernameView : Html Msg
 setUsernameView =
     form [ onSubmit ConnectSocket ]
         [ input [ onInput SetUsername, placeholder "Enter a username" ] [] ]
-
-
-view : Model -> Html Msg
-view model =
-    Material.Scheme.top <|
-        Layout.render Mdl
-            model.mdl
-            [ Layout.fixedHeader
-            , Layout.fixedDrawer
-            ]
-            { header = [ viewHeader model ]
-            , drawer = [ viewDrawer model ]
-            , tabs = ( [], [] )
-            , main =
-                [ div
-                    [ style [ ( "padding", "1rem" ) ] ]
-                    [ viewBody model
-                    , Snackbar.view model.snackbar |> App.map Snackbar
-                    ]
-                ]
-            }
 
 
 viewHeader : Model -> Html Msg

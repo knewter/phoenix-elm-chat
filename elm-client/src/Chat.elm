@@ -1,4 +1,4 @@
-module Chat exposing (view, initialModel, update, Model, Msg(..), OutMsg(..))
+module Chat exposing (view, initialModel, update, Model, Msg(..), OutMsg(..), encodeMessage)
 
 import Html exposing (..)
 import Html.Attributes exposing (value, placeholder, class)
@@ -20,6 +20,7 @@ import Markdown
 type Msg
     = SetNewMessage String
     | ReceiveMessage JE.Value
+    | ReceiveHistory JE.Value
     | SendMessage
     | Mdl (Material.Msg Msg)
 
@@ -66,6 +67,20 @@ update msg model =
             case JD.decodeValue chatMessageDecoder raw of
                 Ok chatMessage ->
                     ( { model | messages = model.messages ++ [ chatMessage ] }
+                    , Cmd.none
+                    , Nothing
+                    )
+
+                Err error ->
+                    ( model
+                    , Cmd.none
+                    , Nothing
+                    )
+
+        ReceiveHistory raw ->
+            case JD.decodeValue chatHistoryDecoder raw of
+                Ok chatMessages ->
+                    ( { model | messages = model.messages ++ chatMessages }
                     , Cmd.none
                     , Nothing
                     )
@@ -160,3 +175,14 @@ chatMessageDecoder =
             ]
         )
         ("body" := JD.string)
+
+
+chatHistoryDecoder : JD.Decoder (List Message)
+chatHistoryDecoder =
+    JD.object1 identity
+        ("history" := (JD.list chatMessageDecoder))
+
+
+encodeMessage : String -> JE.Value
+encodeMessage message =
+    (JE.object [ ( "body", JE.string message ) ])

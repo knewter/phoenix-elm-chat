@@ -19,9 +19,11 @@ type Msg
     | HandlePresenceDiff JE.Value
     | HandleChatJoinCommand JE.Value
     | ReceiveChatMessage String JE.Value
+    | ReceiveChatHistory String JE.Value
     | ChatMsg String Chat.Msg
     | ChatWithUser User
     | ShowChat String
     | Mdl (Material.Msg Msg)
     | Snackbar (Snackbar.Msg (Maybe Msg))
     | SelectTab Int
+    | GetHistory String

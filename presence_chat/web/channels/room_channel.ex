@@ -51,9 +51,8 @@ defmodule PresenceChat.RoomChannel do
       users = channel |> String.split(@two_way_regex)
       for user <- users do
         if(user != socket.assigns[:user]) do
-          # FIXME: This should go over a user-specific control channel, not the lobby
-          IO.puts "broadcasting to control channel: control:#{user}"
           PresenceChat.Endpoint.broadcast!("control:"<>user, "chat:join", %{channel: "room:"<>channel})
+          #ControlChannel.join_chat(user, channel) # <-- do this
         end
       end
     end

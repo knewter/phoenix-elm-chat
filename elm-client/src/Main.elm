@@ -19,6 +19,7 @@ import Styles
 import Types exposing (User, Message)
 import Material
 import Material.Snackbar as Snackbar
+import Task
 
 
 init : ( Model, Cmd Msg )
@@ -54,6 +55,7 @@ update msg model =
 
                         Just chatWrapper ->
                             let
+                                -- Don't dig into that data structure it's dumb/wrong
                                 totalMessages =
                                     List.length chatWrapper.model.messages
 
@@ -98,6 +100,7 @@ update msg model =
                                 phxSocket2 =
                                     phxSocket
                                         |> Phoenix.Socket.on "new:msg" channelName (ReceiveChatMessage channelName)
+                                        |> Phoenix.Socket.on "history:list" channelName (ReceiveChatHistory channelName)
 
                                 initialChatModel =
                                     Chat.initialModel
@@ -116,7 +119,10 @@ update msg model =
                                     | phxSocket = Just phxSocket2
                                     , chats = newChats
                                   }
-                                , Cmd.map PhoenixMsg phxJoinCmd
+                                , Cmd.batch
+                                    [ Cmd.map PhoenixMsg phxJoinCmd
+                                    , Task.perform identity identity (Task.succeed <| GetHistory channelName)
+                                    ]
                                 )
 
         PhoenixMsg msg ->
@@ -267,6 +273,48 @@ update msg model =
                     in
                         ( newModel', newCmd' )
 
+        ReceiveChatHistory channelName chatHistory ->
+            case model.chats |> Dict.get channelName of
+                Nothing ->
+                    model ! []
+
+                Just chatWrapper ->
+                    let
+                        ( newChat, chatCmd, outMsg ) =
+                            Chat.update (Chat.ReceiveHistory chatHistory) chatWrapper.model
+
+                        totalMessages =
+                            List.length newChat.messages
+
+                        seenMessages =
+                            case model.currentChat == Just channelName of
+                                True ->
+                                    totalMessages
+
+                                False ->
+                                    chatWrapper.seenMessages
+
+                        newChatWrapper =
+                            { chatWrapper
+                                | model = newChat
+                                , totalMessages = totalMessages
+                                , seenMessages = seenMessages
+                            }
+
+                        newChats =
+                            Dict.insert channelName newChatWrapper model.chats
+
+                        newModel =
+                            { model | chats = newChats }
+
+                        newCmd =
+                            Cmd.map (ChatMsg channelName) chatCmd
+
+                        ( newModel', newCmd' ) =
+                            handleChatOutMsg channelName outMsg ( newModel, newCmd )
+                    in
+                        ( newModel', newCmd' )
+
         ChatMsg channelName chatMsg ->
             case Dict.get channelName model.chats of
                 Nothing ->
@@ -329,7 +377,14 @@ update msg model =
             Material.update msg' model
 
         Snackbar (Snackbar.Click (Just msg)) ->
-            update msg model
+            let
+                ( newModel, cmd ) =
+                    update msg model
+
+                ( snackbar, snackCmd ) =
+                    Snackbar.update (Snackbar.Click (Just msg)) newModel.snackbar
+            in
+                { newModel | snackbar = snackbar } ! [ cmd, Cmd.map Snackbar snackCmd ]
 
         Snackbar msg' ->
             let
@@ -340,6 +395,28 @@ update msg model =
 
         SelectTab num ->
             { model | selectedTab = num } ! []
+
+        GetHistory channelName ->
+            case model.phxSocket of
+                Nothing ->
+                    model ! []
+
+                Just modelPhxSocket ->
+                    let
+                        push' =
+                            Phoenix.Push.init "history:fetch" channelName
+                                |> Phoenix.Push.withPayload (JE.object [])
+
+                        ( phxSocket, phxCmd ) =
+                            Phoenix.Socket.push push' modelPhxSocket
+                    in
+                        ( { model
+                            | phxSocket = Just phxSocket
+                          }
+                        , Cmd.batch
+                            [ Cmd.map PhoenixMsg phxCmd
+                            ]
+                        )
 
 
 controlChannelName : String -> String
@@ -372,7 +449,7 @@ handleChatOutMsg channelName maybeOutMsg ( model, cmd ) =
                         Just modelPhxSocket ->
                             let
                                 payload =
-                                    (JE.object [ ( "body", JE.string message ) ])
+                                    Chat.encodeMessage message
 
                                 push' =
                                     Phoenix.Push.init "new:msg" channelName
